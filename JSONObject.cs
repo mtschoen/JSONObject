@@ -12,7 +12,7 @@ using System.Collections.Generic;
  * Copyright Matt Schoen 2010
  */
 
-public class JSONObject : Nullable {
+public class JSONObject {
 	const int MAX_DEPTH = 1000;
 	const string INFINITY = "\"INFINITY\"";
 	const string NEGINFINITY = "\"NEGINFINITY\"";
@@ -95,17 +95,8 @@ public class JSONObject : Nullable {
 	public JSONObject() { }
 	public JSONObject(string str) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
 		if(str != null) {
-			//TODO: fix the parsing so that i don't have to just strip out all newlines, etc.
-#if(READABLE)
-			str = str.Replace("\\n", "");
-			str = str.Replace("\\t", "");
-			str = str.Replace("\\r", "");
-			str = str.Replace("\t", "");
-			str = str.Replace("\n", "");
-			str = str.Replace("\\", "");
-#endif
-			if(str.Length > 0) {
-				string strtmp = str.Trim(WHITESPACE);
+			string strtmp = str.Trim(WHITESPACE);
+			if(strtmp.Length > 0) {
 				if(string.Compare(strtmp, "true", true) == 0) {
 					type = Type.BOOL;
 					b = true;
@@ -201,10 +192,8 @@ public class JSONObject : Nullable {
 						}
 					}
 				}
-			}
-		} else {
-			type = Type.NULL;	//If the string is missing, this is a null
-		}
+			} else type = Type.NULL;
+		} else type = Type.NULL;	//If the string is missing, this is a null
 	}
 	public bool IsNumber { get { return type == Type.NUMBER; } }
 	public bool IsNull { get { return type == Type.NULL; } }
@@ -529,5 +518,8 @@ public class JSONObject : Nullable {
 			return result;
 		} else Debug.LogWarning("Tried to turn non-Object JSONObject into a dictionary");
 		return null;
+	}
+	public static implicit operator bool(JSONObject o) {
+		return (object)o != null;
 	}
 }

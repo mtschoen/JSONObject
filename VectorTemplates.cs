@@ -20,9 +20,6 @@ public static partial class JSONTemplates {
 	/*
 	 * Vector3
 	 */
-	public static JSONObject FromIntVector3(IntVector3 v) {
-		return FromVector3(v.toVector3());
-	}
 	public static JSONObject FromVector3(Vector3 v) {
 		JSONObject vdata = new JSONObject(JSONObject.Type.OBJECT);
 		if(v.x != 0)	vdata.AddField("x", v.x);
@@ -35,9 +32,6 @@ public static partial class JSONTemplates {
 		float y = obj["y"] ? obj["y"].n : 0;
 		float z = obj["z"] ? obj["z"].n : 0;
 		return new Vector3(x, y, z);
-	}
-	public static IntVector3 ToIntVector3(JSONObject obj) {
-		return new IntVector3(ToVector3(obj));
 	}
 	/*
 	 * Vector4

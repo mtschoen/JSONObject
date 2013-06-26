@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 
 /*
@@ -11,11 +12,10 @@ using System.Reflection;
 
 public static partial class JSONTemplates {
 
-	public static Set touched = new Set();
+	public static HashSet<object> touched = new HashSet<object>();
 
 	public static JSONObject TOJSON(object obj) {		//For a generic guess
-		if(!touched.Contains(obj)) {
-			touched.Add(obj);
+		if(touched.Add(obj)) {
 			JSONObject result = JSONObject.obj;
 			//Fields
 			FieldInfo[] fieldinfo = obj.GetType().GetFields();
@@ -65,7 +65,6 @@ public static partial class JSONTemplates {
 			Debug.LogWarning("trying to save the same data twice");
 		return JSONObject.nullJO;
 	}
-	public static JSONObject FromSet(Set s) { return null; }
 }
 
 /*
