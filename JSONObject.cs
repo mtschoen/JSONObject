@@ -297,7 +297,7 @@ public class JSONObject {
 		}
 	}
 	public void GetField(string name, GetFieldResponse response, FieldNotFound fail = null) {
-		if(response != null) {
+		if(response != null && type == Type.OBJECT) {
 			int index = keys.IndexOf(name);
 			if(index >= 0)
 				response.Invoke(list[index]);
