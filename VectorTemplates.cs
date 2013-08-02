@@ -7,8 +7,8 @@ public static partial class JSONTemplates {
 	 * Vector2
 	 */
 	public static Vector2 ToVector2(JSONObject obj) {
-		float x = obj["x"] ? obj["x"].n : 0;
-		float y = obj["y"] ? obj["y"].n : 0;
+		float x = obj["x"] ? obj["x"].f : 0;
+		float y = obj["y"] ? obj["y"].f : 0;
 		return new Vector2(x, y);
 	}
 	public static JSONObject FromVector2(Vector2 v) {
@@ -28,9 +28,9 @@ public static partial class JSONTemplates {
 		return vdata;
 	}
 	public static Vector3 ToVector3(JSONObject obj) {
-		float x = obj["x"] ? obj["x"].n : 0;
-		float y = obj["y"] ? obj["y"].n : 0;
-		float z = obj["z"] ? obj["z"].n : 0;
+		float x = obj["x"] ? obj["x"].f : 0;
+		float y = obj["y"] ? obj["y"].f : 0;
+		float z = obj["z"] ? obj["z"].f : 0;
 		return new Vector3(x, y, z);
 	}
 	/*
@@ -45,10 +45,10 @@ public static partial class JSONTemplates {
 		return vdata;
 	}
 	public static Vector4 ToVector4(JSONObject obj) {
-		float x = obj["x"] ? obj["x"].n : 0;
-		float y = obj["y"] ? obj["y"].n : 0;
-		float z = obj["z"] ? obj["z"].n : 0;
-		float w = obj["w"] ? obj["w"].n : 0;
+		float x = obj["x"] ? obj["x"].f : 0;
+		float y = obj["y"] ? obj["y"].f : 0;
+		float z = obj["z"] ? obj["z"].f : 0;
+		float w = obj["w"] ? obj["w"].f : 0;
 		return new Vector4(x, y, z, w);
 	}
 	/*
@@ -76,22 +76,22 @@ public static partial class JSONTemplates {
 	}
 	public static Matrix4x4 ToMatrix4x4(JSONObject obj) {
 		Matrix4x4 result = new Matrix4x4();
-		if(obj["m00"]) result.m00 = obj["m00"].n;
-		if(obj["m01"]) result.m01 = obj["m01"].n;
-		if(obj["m02"]) result.m02 = obj["m02"].n;
-		if(obj["m03"]) result.m03 = obj["m03"].n;
-		if(obj["m10"]) result.m10 = obj["m10"].n;
-		if(obj["m11"]) result.m11 = obj["m11"].n;
-		if(obj["m12"]) result.m12 = obj["m12"].n;
-		if(obj["m13"]) result.m13 = obj["m13"].n;
-		if(obj["m20"]) result.m20 = obj["m20"].n;
-		if(obj["m21"]) result.m21 = obj["m21"].n;
-		if(obj["m22"]) result.m22 = obj["m22"].n;
-		if(obj["m23"]) result.m23 = obj["m23"].n;
-		if(obj["m30"]) result.m30 = obj["m30"].n;
-		if(obj["m31"]) result.m31 = obj["m31"].n;
-		if(obj["m32"]) result.m32 = obj["m32"].n;
-		if(obj["m33"]) result.m33 = obj["m33"].n;
+		if(obj["m00"]) result.m00 = obj["m00"].f;
+		if(obj["m01"]) result.m01 = obj["m01"].f;
+		if(obj["m02"]) result.m02 = obj["m02"].f;
+		if(obj["m03"]) result.m03 = obj["m03"].f;
+		if(obj["m10"]) result.m10 = obj["m10"].f;
+		if(obj["m11"]) result.m11 = obj["m11"].f;
+		if(obj["m12"]) result.m12 = obj["m12"].f;
+		if(obj["m13"]) result.m13 = obj["m13"].f;
+		if(obj["m20"]) result.m20 = obj["m20"].f;
+		if(obj["m21"]) result.m21 = obj["m21"].f;
+		if(obj["m22"]) result.m22 = obj["m22"].f;
+		if(obj["m23"]) result.m23 = obj["m23"].f;
+		if(obj["m30"]) result.m30 = obj["m30"].f;
+		if(obj["m31"]) result.m31 = obj["m31"].f;
+		if(obj["m32"]) result.m32 = obj["m32"].f;
+		if(obj["m33"]) result.m33 = obj["m33"].f;
 		return result;
 	}
 	/*
@@ -106,10 +106,10 @@ public static partial class JSONTemplates {
 		return qdata;
 	}
 	public static Quaternion ToQuaternion(JSONObject obj) {
-		float x = obj["x"] ? obj["x"].n : 0;
-		float y = obj["y"] ? obj["y"].n : 0;
-		float z = obj["z"] ? obj["z"].n : 0;
-		float w = obj["w"] ? obj["w"].n : 0;
+		float x = obj["x"] ? obj["x"].f : 0;
+		float y = obj["y"] ? obj["y"].f : 0;
+		float z = obj["z"] ? obj["z"].f : 0;
+		float w = obj["w"] ? obj["w"].f : 0;
 		return new Quaternion(x, y, z, w);
 	}
 	/*
@@ -127,10 +127,10 @@ public static partial class JSONTemplates {
 		Color c = new Color();
 		for(int i = 0; i < obj.Count; i++) {
 			switch((string)obj.keys[i]) {
-			case "r": c.r = obj[i].n; break;
-			case "g": c.g = obj[i].n; break;
-			case "b": c.b = obj[i].n; break;
-			case "a": c.a = obj[i].n; break;
+			case "r": c.r = obj[i].f; break;
+			case "g": c.g = obj[i].f; break;
+			case "b": c.b = obj[i].f; break;
+			case "a": c.a = obj[i].f; break;
 			}
 		}
 		return c;
@@ -160,10 +160,10 @@ public static partial class JSONTemplates {
 		Rect r = new Rect();
 		for(int i = 0; i < obj.Count; i++) {
 			switch((string)obj.keys[i]) {
-			case "x": r.x = obj[i].n; break;
-			case "y": r.y = obj[i].n; break;
-			case "height": r.height = obj[i].n; break;
-			case "width": r.width = obj[i].n; break;
+			case "x": r.x = obj[i].f; break;
+			case "y": r.y = obj[i].f; break;
+			case "height": r.height = obj[i].f; break;
+			case "width": r.width = obj[i].f; break;
 			}
 		}
 		return r;

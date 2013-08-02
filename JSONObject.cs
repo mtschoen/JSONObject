@@ -28,8 +28,18 @@ public class JSONObject {
 	public string str;
 #if USEFLOAT
 	public float n;
+	public float f {
+		get {
+			return n;
+		}
+	}
 #else
 	public double n;
+	public float f {
+		get {
+			return (float)n;
+		}
+	}
 #endif
 	public bool b;
 	public delegate void AddJSONConents(JSONObject self);
@@ -62,7 +72,6 @@ public class JSONObject {
 		type = Type.OBJECT;
 		keys = new List<string>();
 		list = new List<JSONObject>();
-		Debug.Log(dic);
 		foreach(KeyValuePair<string, string> kvp in dic) {
 			keys.Add(kvp.Key);
 			list.Add(new JSONObject { type = Type.STRING, str = kvp.Value });
@@ -95,23 +104,23 @@ public class JSONObject {
 	public JSONObject() { }
 	public JSONObject(string str) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
 		if(str != null) {
-			string strtmp = str.Trim(WHITESPACE);
-			if(strtmp.Length > 0) {
-				if(string.Compare(strtmp, "true", true) == 0) {
+			str = str.Trim(WHITESPACE);
+			if(str.Length > 0) {
+				if(string.Compare(str, "true", true) == 0) {
 					type = Type.BOOL;
 					b = true;
-				} else if(string.Compare(strtmp, "false", true) == 0) {
+				} else if(string.Compare(str, "false", true) == 0) {
 					type = Type.BOOL;
 					b = false;
-				} else if(strtmp == "null") {
+				} else if(str == "null") {
 					type = Type.NULL;
-				} else if(strtmp == INFINITY) {
+				} else if(str == INFINITY) {
 					type = Type.NUMBER;
 					n = Mathf.Infinity;
-				} else if(strtmp == NEGINFINITY) {
+				} else if(str == NEGINFINITY) {
 					type = Type.NUMBER;
 					n = Mathf.NegativeInfinity;
-				} else if(strtmp[0] == '"') {
+				} else if(str[0] == '"') {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
 				} else {
@@ -123,7 +132,7 @@ public class JSONObject {
 #endif
 						type = Type.NUMBER;
 					} catch(System.FormatException) {
-						int token_tmp = 0;
+						int token_tmp = 1;
 						/*
 						 * Checking for the following formatting (www.json.org)
 						 * object - {"field1":value,"field2":value}
@@ -134,20 +143,6 @@ public class JSONObject {
 						 *		 - null		- null
 						 */
 						int offset = 0;
-						//TODO: Fix this logic
-						do {
-							bool stop = true;
-							foreach(char c in WHITESPACE)
-								if(str[offset] == c)
-									stop = false;
-							if(stop)
-								break;
-						} while(offset++ < str.Length);
-						if(offset == str.Length) {
-							type = Type.NULL;
-							Debug.LogWarning("improper JSON formatting:" + str);
-							return;
-						}
 						switch(str[offset]) {
 							case '{':
 								type = Type.OBJECT;
@@ -163,32 +158,46 @@ public class JSONObject {
 								Debug.LogWarning("improper JSON formatting:" + str);
 								return;
 						}
-						int depth = 0;
-						bool openquote = false;
+						string propName = "";
+						bool openQuote = false;
 						bool inProp = false;
-						for(int i = offset + 1; i < str.Length; i++) {
-							if(str[i] == '"')
-								openquote = !openquote;
-							else if(str[i] == '[' || str[i] == '{')
-								depth++;
-							if(depth == 0 && !openquote) {
-								if(str[i] == ':' && !inProp) {
-									inProp = true;
-									try {
-										keys.Add(str.Substring(token_tmp + 2, i - token_tmp - 3));
-									} catch { Debug.Log(i + " - " + str.Length + " - " + str); }
-									token_tmp = i;
+						int depth = 0;
+						while(++offset < str.Length) {
+							if(System.Array.IndexOf<char>(WHITESPACE, str[offset]) > -1)
+								continue;
+							if(str[offset] == '\"') {
+								if(openQuote) {
+									if(!inProp && depth == 0 && type == Type.OBJECT)
+										propName = str.Substring(token_tmp + 1, offset - token_tmp - 1);
+									openQuote = false;
+								} else {
+									if(depth == 0 && type == Type.OBJECT)
+										token_tmp = offset;
+									openQuote = true;
 								}
-								if(str[i] == ',') {
-									inProp = false;
-									list.Add(new JSONObject(str.Substring(token_tmp + 1, i - token_tmp - 1)));
-									token_tmp = i;
-								}
-								if(str[i] == ']' || str[i] == '}')
-									list.Add(new JSONObject(str.Substring(token_tmp + 1, i - token_tmp - 1)));
 							}
-							if(str[i] == ']' || str[i] == '}')
+							if(openQuote)
+								continue;
+							if(type == Type.OBJECT && depth == 0) {
+								if(str[offset] == ':') {
+									token_tmp = offset + 1;
+									inProp = true;
+								}
+							}
+							
+							if(str[offset] == '[' || str[offset] == '{') {
+								depth++;
+							} else if(str[offset] == ']' || str[offset] == '}') {
 								depth--;
+							}
+							
+							if((str[offset] == ',' && depth == 0) || depth <  0) {
+								inProp = false;
+								if(type == Type.OBJECT)
+									keys.Add(propName);
+								list.Add(new JSONObject(str.Substring(token_tmp, offset - token_tmp)));
+								token_tmp = offset + 1;
+							}
 						}
 					}
 				}
@@ -264,7 +273,11 @@ public class JSONObject {
 			else if(fail != null) fail.Invoke(name);
 		}
 	}
+#if USEFLOAT
 	public void GetField(ref float field, string name, FieldNotFound fail = null) {
+#else
+	public void GetField(ref double field, string name, FieldNotFound fail = null) {
+#endif
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
 			if(index >= 0)
@@ -383,7 +396,7 @@ public class JSONObject {
 	public string print() {
 		return print(0);
 	}
-	public string print(int depth) {	//Convert the JSONObject into a stiring
+	public string print(int depth) {	//Convert the JSONObject into a string
 		if(depth++ > MAX_DEPTH) {
 			Debug.Log("reached max depth!");
 			return "";
