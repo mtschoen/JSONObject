@@ -268,10 +268,12 @@ public class JSONObject {
 	public void GetField(ref bool field, string name, FieldNotFound fail = null) {
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
-			if(index >= 0)
+			if(index >= 0) {
 				field = list[index].b;
-			else if(fail != null) fail.Invoke(name);
-		}
+				return;
+			}
+		} 
+		if(fail != null) fail.Invoke(name);
 	}
 #if USEFLOAT
 	public void GetField(ref float field, string name, FieldNotFound fail = null) {
@@ -280,42 +282,52 @@ public class JSONObject {
 #endif
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
-			if(index >= 0)
+			if(index >= 0){
 				field = list[index].n;
-			else if(fail != null) fail.Invoke(name);
+				return;
+			}
 		}
+		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(ref int field, string name, FieldNotFound fail = null) {
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
-			if(index >= 0)
+			if(index >= 0) {
 				field = (int)list[index].n;
-			else if(fail != null) fail.Invoke(name);
+				return;
+			}
 		}
+		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(ref uint field, string name, FieldNotFound fail = null) {
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
-			if(index >= 0)
+			if(index >= 0) {
 				field = (uint)list[index].n;
-			else if(fail != null) fail.Invoke(name);
+				return;
+			}
 		}
+		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(ref string field, string name, FieldNotFound fail = null) {
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
-			if(index >= 0)
+			if(index >= 0) {
 				field = list[index].str;
-			else if(fail != null) fail.Invoke(name);
+				return;
+			}
 		}
+		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(string name, GetFieldResponse response, FieldNotFound fail = null) {
 		if(response != null && type == Type.OBJECT) {
 			int index = keys.IndexOf(name);
-			if(index >= 0)
+			if(index >= 0) {
 				response.Invoke(list[index]);
-			else if(fail != null) fail.Invoke(name);
+				return;
+			}
 		}
+		if(fail != null) fail.Invoke(name);
 	}
 	public JSONObject GetField(string name) {
 		if(type == JSONObject.Type.OBJECT)
