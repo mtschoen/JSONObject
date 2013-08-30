@@ -1,5 +1,5 @@
 //#define READABLE
-#define USEFLOAT	//Use floats for numbers instead of doubles
+#define USEFLOAT	//Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
 
 using UnityEngine;
 using System.Collections;
@@ -44,9 +44,9 @@ public class JSONObject {
 	public bool b;
 	public delegate void AddJSONConents(JSONObject self);
 
-	public static JSONObject nullJO { get { return new JSONObject(JSONObject.Type.NULL); } }
-	public static JSONObject obj { get { return new JSONObject(JSONObject.Type.OBJECT); } }
-	public static JSONObject arr { get { return new JSONObject(JSONObject.Type.ARRAY); } }
+	public static JSONObject nullJO { get { return new JSONObject(JSONObject.Type.NULL); } }	//an empty, null object
+	public static JSONObject obj { get { return new JSONObject(JSONObject.Type.OBJECT); } }		//an empty object
+	public static JSONObject arr { get { return new JSONObject(JSONObject.Type.ARRAY); } }		//an empty array
 
 	public JSONObject(JSONObject.Type t) {
 		type = t;
@@ -93,6 +93,8 @@ public class JSONObject {
 		type = Type.ARRAY;
 		list = new List<JSONObject>(objs);
 	}
+	//Convenience function for creating a JSONObject containing a string.  This is not part of the constructor so that malformed JSON data doesn't just turn into a string object
+	public static JSONObject StringObject(string val) { return new JSONObject { type = JSONObject.Type.STRING, str = val }; }
 	public void Absorb(JSONObject obj) {
 		list.AddRange(obj.list);
 		keys.AddRange(obj.keys);
@@ -213,6 +215,7 @@ public class JSONObject {
 	public void Add(bool val) { Add(new JSONObject(val)); }
 	public void Add(float val) { Add(new JSONObject(val)); }
 	public void Add(int val) { Add(new JSONObject(val)); }
+	public void Add(string str) { Add(StringObject(str)); }
 	public void Add(AddJSONConents content) { Add(new JSONObject(content)); }
 	public void Add(JSONObject obj) {
 		if(obj) {		//Don't do anything if the object is null
@@ -230,9 +233,7 @@ public class JSONObject {
 	public void AddField(string name, float val) { AddField(name, new JSONObject(val)); }
 	public void AddField(string name, int val) { AddField(name, new JSONObject(val)); }
 	public void AddField(string name, AddJSONConents content) { AddField(name, new JSONObject(content)); }
-	public void AddField(string name, string val) {
-		AddField(name, new JSONObject { type = JSONObject.Type.STRING, str = val });
-	}
+	public void AddField(string name, string val) {	AddField(name, StringObject(val)); }
 	public void AddField(string name, JSONObject obj) {
 		if(obj) {		//Don't do anything if the object is null
 			if(type != JSONObject.Type.OBJECT) {
@@ -351,8 +352,10 @@ public class JSONObject {
 	}
 	public void Clear() {
 		type = JSONObject.Type.NULL;
-		list.Clear();
-		keys.Clear();
+		if(list != null)
+			list.Clear();
+		if (keys != null)
+			keys.Clear();
 		str = "";
 		n = 0;
 		b = false;
@@ -428,8 +431,8 @@ public class JSONObject {
 				break;
 
 			case JSONObject.Type.OBJECT:
+				str = "{";
 				if(list.Count > 0) {
-					str = "{";
 #if(READABLE)	//for a bit more readability, comment the define above to save space
 				str += "\n";
 				depth++;
@@ -453,12 +456,12 @@ public class JSONObject {
 				str = str.Substring(0, str.Length - 1);
 #endif
 					str = str.Substring(0, str.Length - 1);
-					str += "}";
-				} else str = "null";
+				}
+				str += "}";
 				break;
 			case JSONObject.Type.ARRAY:
+				str = "[";
 				if(list.Count > 0) {
-					str = "[";
 #if(READABLE)
 				str += "\n"; //for a bit more readability
 				depth++;
@@ -479,8 +482,8 @@ public class JSONObject {
 				str = str.Substring(0, str.Length - 1);
 #endif
 					str = str.Substring(0, str.Length - 1);
-					str += "]";
-				} else str = "null";
+				}
+				str += "]";
 				break;
 			case Type.BOOL:
 				if(b)
