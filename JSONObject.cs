@@ -1,4 +1,4 @@
-//#define READABLE
+#define PRETTY	//Comment out when you no longer need to read JSON to disable pretty print system-wide
 #define USEFLOAT	//Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
 
 using UnityEngine;
@@ -16,6 +16,7 @@ public class JSONObject {
 	const int MAX_DEPTH = 1000;
 	const string INFINITY = "\"INFINITY\"";
 	const string NEGINFINITY = "\"NEGINFINITY\"";
+	const string NaN = "\"NaN\"";
 	public static char[]  WHITESPACE = new char[] { ' ', '\r', '\n', '\t' };
 	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL }
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
@@ -104,9 +105,17 @@ public class JSONObject {
 		type = obj.type;
 	}
 	public JSONObject() { }
-	public JSONObject(string str) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
+	#region PARSE
+	public JSONObject(string str, bool strict = false) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
 		if(str != null) {
 			str = str.Trim(WHITESPACE);
+			if(strict) {
+				if(str[0] != '[' && str[0] != '{') {
+					type = Type.NULL;
+					Debug.LogWarning("Improper (strict) JSON formatting.  First character must be [ or {");
+					return;
+				}
+			}
 			if(str.Length > 0) {
 				if(string.Compare(str, "true", true) == 0) {
 					type = Type.BOOL;
@@ -114,14 +123,29 @@ public class JSONObject {
 				} else if(string.Compare(str, "false", true) == 0) {
 					type = Type.BOOL;
 					b = false;
-				} else if(str == "null") {
+				} else if(string.Compare(str, "null", true) == 0) {
 					type = Type.NULL;
+#if USEFLOAT
 				} else if(str == INFINITY) {
 					type = Type.NUMBER;
-					n = Mathf.Infinity;
+					n = float.PositiveInfinity;
 				} else if(str == NEGINFINITY) {
 					type = Type.NUMBER;
-					n = Mathf.NegativeInfinity;
+					n = float.NegativeInfinity;
+				} else if(str == NaN) {
+					type = Type.NUMBER;
+					n = float.NaN;
+#else
+				} else if(str == INFINITY) {
+					type = Type.NUMBER;
+					n = double.PositiveInfinity;
+				} else if(str == NEGINFINITY) {
+					type = Type.NUMBER;
+					n = double.NegativeInfinity;
+				} else if(str == NaN) {
+					type = Type.NUMBER;
+					n = double.NaN;
+#endif
 				} else if(str[0] == '"') {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
@@ -130,7 +154,7 @@ public class JSONObject {
 #if USEFLOAT
 						n = System.Convert.ToSingle(str);
 #else
-						n = System.Convert.ToDouble(str);
+						n = System.Convert.ToDouble(str);				 
 #endif
 						type = Type.NUMBER;
 					} catch(System.FormatException) {
@@ -192,12 +216,15 @@ public class JSONObject {
 							} else if(str[offset] == ']' || str[offset] == '}') {
 								depth--;
 							}
-							
+							//if  (encounter a ',' at top level)  || a closing ]/}
 							if((str[offset] == ',' && depth == 0) || depth <  0) {
 								inProp = false;
-								if(type == Type.OBJECT)
-									keys.Add(propName);
-								list.Add(new JSONObject(str.Substring(token_tmp, offset - token_tmp)));
+								string inner = str.Substring(token_tmp, offset - token_tmp).Trim(WHITESPACE);
+								if(inner.Length > 0) {
+									if(type == Type.OBJECT)
+										keys.Add(propName);
+									list.Add(new JSONObject(inner));
+								}
 								token_tmp = offset + 1;
 							}
 						}
@@ -206,6 +233,7 @@ public class JSONObject {
 			} else type = Type.NULL;
 		} else type = Type.NULL;	//If the string is missing, this is a null
 	}
+	#endregion
 	public bool IsNumber { get { return type == Type.NUMBER; } }
 	public bool IsNull { get { return type == Type.NULL; } }
 	public bool IsString { get { return type == Type.STRING; } }
@@ -408,10 +436,11 @@ public class JSONObject {
 			}
 		}
 	}
-	public string print() {
-		return print(0);
+	public string print(bool pretty = false) {
+		return print(0, pretty);
 	}
-	public string print(int depth) {	//Convert the JSONObject into a string
+	#region STRINGIFY
+	public string print(int depth, bool pretty = false) {	//Convert the JSONObject into a string
 		if(depth++ > MAX_DEPTH) {
 			Debug.Log("reached max depth!");
 			return "";
@@ -422,10 +451,21 @@ public class JSONObject {
 				str = "\"" + this.str + "\"";
 				break;
 			case Type.NUMBER:
-				if(n == Mathf.Infinity)
+#if USEFLOAT
+				if(float.IsInfinity(n))
 					str = INFINITY;
-				else if(n == Mathf.NegativeInfinity)
+				else if(float.IsNegativeInfinity(n))
 					str = NEGINFINITY;
+				else if(float.IsNaN(n))
+					str = NaN;
+#else
+				if(double.IsInfinity(n))
+					str = INFINITY;
+				else if(double.IsNegativeInfinity(n))
+					str = NEGINFINITY;
+				else if(double.IsNaN(n))
+					str = NaN;
+#endif
 				else
 					str += n;
 				break;
@@ -433,56 +473,76 @@ public class JSONObject {
 			case JSONObject.Type.OBJECT:
 				str = "{";
 				if(list.Count > 0) {
-#if(READABLE)	//for a bit more readability, comment the define above to save space
-				str += "\n";
-				depth++;
+#if(PRETTY)	//for a bit more readability, comment the define above to disable system-wide
+					if(pretty)
+						str += "\n";
 #endif
 					for(int i = 0; i < list.Count; i++) {
 						string key = (string)keys[i];
 						JSONObject obj = (JSONObject)list[i];
 						if(obj) {
-#if(READABLE)
-						for(int j = 0; j < depth; j++)
-							str += "\t"; //for a bit more readability
+#if(PRETTY)
+							if(pretty)
+								for(int j = 0; j < depth; j++)
+									str += "\t"; //for a bit more readability
 #endif
 							str += "\"" + key + "\":";
-							str += obj.print(depth) + ",";
-#if(READABLE)
-						str += "\n";
+							str += obj.print(depth, pretty) + ",";
+#if(PRETTY)
+							if(pretty)
+								str += "\n";
 #endif
 						}
 					}
-#if(READABLE)
-				str = str.Substring(0, str.Length - 1);
+#if(PRETTY)
+					if(pretty)
+						str = str.Substring(0, str.Length - 1);		//BOP: This line shows up twice on purpose: once to remove the \n if readable is true and once to remove the comma
 #endif
 					str = str.Substring(0, str.Length - 1);
 				}
+#if(PRETTY)
+				if(pretty && list.Count > 0) {
+					str += "\n";
+					for(int j = 0; j < depth - 1; j++)
+						str += "\t"; //for a bit more readability
+				}
+#endif
 				str += "}";
 				break;
 			case JSONObject.Type.ARRAY:
 				str = "[";
 				if(list.Count > 0) {
-#if(READABLE)
-				str += "\n"; //for a bit more readability
-				depth++;
+#if(PRETTY)
+					if(pretty)
+						str += "\n"; //for a bit more readability
 #endif
 					foreach(JSONObject obj in list) {
 						if(obj) {
-#if(READABLE)
-						for(int j = 0; j < depth; j++)
-							str += "\t"; //for a bit more readability
+#if(PRETTY)
+							if(pretty)
+								for(int j = 0; j < depth; j++)
+									str += "\t"; //for a bit more readability
 #endif
-							str += obj.print(depth) + ",";
-#if(READABLE)
-						str += "\n"; //for a bit more readability
+							str += obj.print(depth, pretty) + ",";
+#if(PRETTY)
+							if(pretty)
+								str += "\n"; //for a bit more readability
 #endif
 						}
 					}
-#if(READABLE)
-				str = str.Substring(0, str.Length - 1);
+#if(PRETTY)
+					if(pretty)
+						str = str.Substring(0, str.Length - 1);	//BOP: This line shows up twice on purpose: once to remove the \n if readable is true and once to remove the comma
 #endif
 					str = str.Substring(0, str.Length - 1);
 				}
+#if(PRETTY)
+				if(pretty && list.Count > 0) {
+					str += "\n";
+					for(int j = 0; j < depth - 1; j++)
+						str += "\t"; //for a bit more readability
+				}
+#endif
 				str += "]";
 				break;
 			case Type.BOOL:
@@ -497,6 +557,7 @@ public class JSONObject {
 		}
 		return str;
 	}
+	#endregion
 	public static implicit operator WWWForm(JSONObject obj){
 		WWWForm form = new WWWForm();
 		for(int i = 0; i < obj.list.Count; i++){
@@ -530,6 +591,9 @@ public class JSONObject {
 	}
 	public override string ToString() {
 		return print();
+	}
+	public string ToString(bool pretty) {
+		return print(pretty);
 	}
 	public Dictionary<string, string> ToDictionary() {
 		if(type == Type.OBJECT) {
