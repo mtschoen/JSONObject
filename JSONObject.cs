@@ -1,4 +1,4 @@
-#define PRETTY	//Comment out when you no longer need to read JSON to disable pretty print system-wide
+#define PRETTY		//Comment out when you no longer need to read JSON to disable pretty print system-wide
 #define USEFLOAT	//Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
 
 using UnityEngine;
@@ -9,7 +9,7 @@ using System.Collections.Generic;
  * http://www.opensource.org/licenses/lgpl-2.1.php
  * JSONObject class
  * for use with Unity
- * Copyright Matt Schoen 2010
+ * Copyright Matt Schoen 2010 - 2013
  */
 
 public class JSONObject {
@@ -22,7 +22,13 @@ public class JSONObject {
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
 	public JSONObject parent;
 	public Type type = Type.NULL;
-	public int Count { get { return list.Count; } }
+	public int Count { 
+		get { 
+			if(list == null)
+				return -1;
+			return list.Count; 
+		} 
+	}
 	//TODO: Switch to list
 	public List<JSONObject> list;
 	public List<string> keys;
