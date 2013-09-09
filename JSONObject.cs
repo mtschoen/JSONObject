@@ -13,6 +13,8 @@ using System.Collections.Generic;
  */
 
 public class JSONObject {
+	public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
+
 	const int MAX_DEPTH = 1000;
 	const string INFINITY = "\"INFINITY\"";
 	const string NEGINFINITY = "\"NEGINFINITY\"";
@@ -246,11 +248,55 @@ public class JSONObject {
 	public bool IsBool { get { return type == Type.BOOL; } }
 	public bool IsArray { get { return type == Type.ARRAY; } }
 	public bool IsObject { get { return type == Type.OBJECT; } }
-	public void Add(bool val) { Add(new JSONObject(val)); }
-	public void Add(float val) { Add(new JSONObject(val)); }
-	public void Add(int val) { Add(new JSONObject(val)); }
-	public void Add(string str) { Add(StringObject(str)); }
-	public void Add(AddJSONConents content) { Add(new JSONObject(content)); }
+	public void Add(bool val) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.BOOL;
+			obj.b = val;
+			Add(obj);
+		} else {
+			Add(new JSONObject(val));
+		}
+	}
+	public void Add(float val) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.NUMBER;
+			obj.n = val;
+			Add(obj);
+		} else {
+			Add(new JSONObject(val));
+		}
+	}
+	public void Add(int val) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.NUMBER;
+			obj.n = val;
+			Add(obj);
+		} else {
+			Add(new JSONObject(val));
+		}
+	}
+	public void Add(string str) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.STRING;
+			obj.str = str;
+			Add(obj);
+		} else {
+			Add(StringObject(str));
+		}
+	}
+	public void Add(AddJSONConents content) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			content.Invoke(obj);
+			Add(obj);
+		} else {
+			Add(new JSONObject(content));
+		}
+	}
 	public void Add(JSONObject obj) {
 		if(obj) {		//Don't do anything if the object is null
 			if(type != JSONObject.Type.ARRAY) {
@@ -263,11 +309,55 @@ public class JSONObject {
 			list.Add(obj);
 		}
 	}
-	public void AddField(string name, bool val) { AddField(name, new JSONObject(val)); }
-	public void AddField(string name, float val) { AddField(name, new JSONObject(val)); }
-	public void AddField(string name, int val) { AddField(name, new JSONObject(val)); }
-	public void AddField(string name, AddJSONConents content) { AddField(name, new JSONObject(content)); }
-	public void AddField(string name, string val) {	AddField(name, StringObject(val)); }
+	public void AddField(string name, bool val) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.BOOL;
+			obj.b = val;
+			AddField(name, obj);
+		} else {
+			AddField(name, new JSONObject(val));
+		}
+	}
+	public void AddField(string name, float val) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.NUMBER;
+			obj.n = val;
+			AddField(name, obj);
+		} else {
+			AddField(name, new JSONObject(val));
+		}
+	}
+	public void AddField(string name, int val) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.NUMBER;
+			obj.n = val;
+			AddField(name, obj);
+		} else {
+			AddField(name, new JSONObject(val));
+		}
+	}
+	public void AddField(string name, AddJSONConents content) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			content.Invoke(obj);
+			AddField(name, obj);
+		} else {
+			AddField(name, new JSONObject(content));
+		}
+	}
+	public void AddField(string name, string val) {
+		if(releaseQueue.Count > 0) {
+			JSONObject obj = releaseQueue.Dequeue();
+			obj.type = Type.STRING;
+			obj.str = val;
+			AddField(name, obj);
+		} else {
+			AddField(name, StringObject(val));
+		}
+	}
 	public void AddField(string name, JSONObject obj) {
 		if(obj) {		//Don't do anything if the object is null
 			if(type != JSONObject.Type.OBJECT) {
@@ -386,8 +476,13 @@ public class JSONObject {
 	}
 	public void Clear() {
 		type = JSONObject.Type.NULL;
-		if(list != null)
+		if(list != null) {
+			foreach(JSONObject obj in list) {
+				releaseQueue.Enqueue(obj);
+				obj.Clear();
+			}
 			list.Clear();
+		}
 		if (keys != null)
 			keys.Clear();
 		str = "";
@@ -620,4 +715,7 @@ public class JSONObject {
 	public static implicit operator bool(JSONObject o) {
 		return (object)o != null;
 	}
+	//~JSONObject() {
+	//	Debug.Log(releaseQueue.Count + ", " + this);
+	//}
 }
