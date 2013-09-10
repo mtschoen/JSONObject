@@ -31,7 +31,6 @@ public class JSONObject {
 			return list.Count; 
 		} 
 	}
-	//TODO: Switch to list
 	public List<JSONObject> list;
 	public List<string> keys;
 	public string str;
@@ -303,8 +302,6 @@ public class JSONObject {
 				type = JSONObject.Type.ARRAY;		//Congratulations, son, you're an ARRAY now
 				if(list == null)
 					list = new List<JSONObject>();
-				for(int i = 0; i < list.Count; i++)
-					keys.Add(i + "");
 			}
 			list.Add(obj);
 		}
@@ -364,9 +361,8 @@ public class JSONObject {
 				type = JSONObject.Type.OBJECT;		//Congratulations, son, you're an OBJECT now
 				if(list == null)
 					list = new List<JSONObject>();
-				for(int i = 0; i < list.Count; i++)
-					keys.Add(i + "");
-				keys = new List<string>();
+				if(keys == null)
+					keys = new List<string>();
 			}
 			keys.Add(name);
 			list.Add(obj);
