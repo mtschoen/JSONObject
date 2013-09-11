@@ -29,7 +29,7 @@ public class JSONChecker : EditorWindow {
 		}
 		if(j) {
 			if(j.type == JSONObject.Type.NULL)
-				GUILayout.Label("JSON fail:\n" + j);
+				GUILayout.Label("JSON fail:\n" + j.ToString(true));
 			else
 				GUILayout.Label("JSON success:\n" + j.ToString(true));
 		}

@@ -257,8 +257,6 @@ public class JSONObject {
 				type = JSONObject.Type.ARRAY;		//Congratulations, son, you're an ARRAY now
 				if(list == null)
 					list = new List<JSONObject>();
-				for(int i = 0; i < list.Count; i++)
-					keys.Add(i + "");
 			}
 			list.Add(obj);
 		}
@@ -271,12 +269,13 @@ public class JSONObject {
 	public void AddField(string name, JSONObject obj) {
 		if(obj) {		//Don't do anything if the object is null
 			if(type != JSONObject.Type.OBJECT) {
-				type = JSONObject.Type.OBJECT;		//Congratulations, son, you're an OBJECT now
-				if(list == null)
-					list = new List<JSONObject>();
-				for(int i = 0; i < list.Count; i++)
-					keys.Add(i + "");
 				keys = new List<string>();
+				if(type == Type.ARRAY) {
+					for(int i = 0; i < list.Count; i++)
+						keys.Add(i + "");
+				} else if(list == null)
+					list = new List<JSONObject>();
+				type = JSONObject.Type.OBJECT;		//Congratulations, son, you're an OBJECT now
 			}
 			keys.Add(name);
 			list.Add(obj);
