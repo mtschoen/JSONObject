@@ -1,5 +1,6 @@
 #define PRETTY		//Comment out when you no longer need to read JSON to disable pretty print system-wide
 #define USEFLOAT	//Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
+//#define POOLING	//Currently using a build setting for this one (also it's experimental)
 
 using UnityEngine;
 using System.Collections;
@@ -82,6 +83,7 @@ public class JSONObject {
 		type = Type.OBJECT;
 		keys = new List<string>();
 		list = new List<JSONObject>();
+		//Not sure if it's worth removing the foreach here
 		foreach(KeyValuePair<string, string> kvp in dic) {
 			keys.Add(kvp.Key);
 			list.Add(new JSONObject { type = Type.STRING, str = kvp.Value });
@@ -91,6 +93,7 @@ public class JSONObject {
 		type = Type.OBJECT;
 		keys = new List<string>();
 		list = new List<JSONObject>();
+		//Not sure if it's worth removing the foreach here
 		foreach(KeyValuePair<string, JSONObject> kvp in dic) {
 			keys.Add(kvp.Key);
 			list.Add(kvp.Value);
@@ -484,8 +487,8 @@ public class JSONObject {
 		return null;
 	}
 	public bool HasFields(string[] names) {
-		foreach(string name in names)
-			if(!keys.Contains(name))
+		for(int i = 0; i < names.Length; i++)
+			if(!keys.Contains(names[i]))
 				return false;
 		return true;
 	}
