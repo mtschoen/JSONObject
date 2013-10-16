@@ -115,11 +115,13 @@ public class JSONObject {
 	}
 	public static JSONObject Create() {
 #if POOLING
-		if(releaseQueue.Count > 0)
-			return releaseQueue.Dequeue();
-		else
+		JSONObject result = null;
+		while(result == null && releaseQueue.Count > 0)
+			result = releaseQueue.Dequeue();
+		if(result != null)
+			return result;
 #endif
-			return new JSONObject();
+		return new JSONObject();
 	}
 	public JSONObject() { }
 	#region PARSE
@@ -496,13 +498,8 @@ public class JSONObject {
 	}
 	public void Clear() {
 		type = JSONObject.Type.NULL;
-		if(list != null) {
-			//foreach(JSONObject obj in list) {
-			//	//releaseQueue.Enqueue(obj);
-			//	obj.Clear();
-			//}
+		if(list != null)
 			list.Clear();
-		}
 		if (keys != null)
 			keys.Clear();
 		str = "";
@@ -637,14 +634,14 @@ public class JSONObject {
 					if(pretty)
 						str += "\n"; //for a bit more readability
 #endif
-					foreach(JSONObject obj in list) {
-						if(obj) {
+					for(int i = 0; i < list.Count; i++){
+						if(list[i]){
 #if(PRETTY)
 							if(pretty)
 								for(int j = 0; j < depth; j++)
 									str += "\t"; //for a bit more readability
 #endif
-							str += obj.print(depth, pretty) + ",";
+							str += list[i].print(depth, pretty) + ",";
 #if(PRETTY)
 							if(pretty)
 								str += "\n"; //for a bit more readability
@@ -735,7 +732,25 @@ public class JSONObject {
 	public static implicit operator bool(JSONObject o) {
 		return (object)o != null;
 	}
-	//~JSONObject() {
-	//	Debug.Log(releaseQueue.Count + ", " + this);
-	//}
+#if POOLING
+	static bool pool = true;
+	public static void ClearPool() {
+		pool = false;
+		releaseQueue.Clear();
+		pool = true;
+	}
+
+	~JSONObject() {
+		if(pool) {
+			parent = null;
+			type = Type.NULL;
+			list = null;
+			keys = null;
+			str = "";
+			n = 0;
+			b = false;
+			releaseQueue.Enqueue(this);
+		}
+	}
+#endif
 }

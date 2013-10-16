@@ -20,6 +20,7 @@ public class JSONChecker : EditorWindow {
 	static void Init() {
 		GetWindow(typeof(JSONChecker));
 	}
+	long totalMem;
 	void OnGUI() {
 		JSON = EditorGUILayout.TextArea(JSON);
 		GUI.enabled = JSON != "";
@@ -28,10 +29,13 @@ public class JSONChecker : EditorWindow {
 			Debug.Log(j.ToString(true));
 		}
 		if(j) {
+			totalMem = System.GC.GetTotalMemory(false);
+			//Debug.Log(System.GC.GetTotalMemory(false) + "");
 			if(j.type == JSONObject.Type.NULL)
 				GUILayout.Label("JSON fail:\n" + j);
 			else
 				GUILayout.Label("JSON success:\n" + j.ToString(true));
+			Debug.Log((System.GC.GetTotalMemory(false) - totalMem) + "");
 		}
 	}
 }
