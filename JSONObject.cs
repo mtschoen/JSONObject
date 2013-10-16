@@ -55,9 +55,9 @@ public class JSONObject {
 	public bool b;
 	public delegate void AddJSONConents(JSONObject self);
 
-	public static JSONObject nullJO { get { return new JSONObject(JSONObject.Type.NULL); } }	//an empty, null object
-	public static JSONObject obj { get { return new JSONObject(JSONObject.Type.OBJECT); } }		//an empty object
-	public static JSONObject arr { get { return new JSONObject(JSONObject.Type.ARRAY); } }		//an empty array
+	public static JSONObject nullJO { get { return Create(JSONObject.Type.NULL); } }	//an empty, null object
+	public static JSONObject obj { get { return Create(JSONObject.Type.OBJECT); } }		//an empty object
+	public static JSONObject arr { get { return Create(JSONObject.Type.ARRAY); } }		//an empty array
 
 	public JSONObject(JSONObject.Type t) {
 		type = t;
@@ -126,9 +126,72 @@ public class JSONObject {
 #endif
 		return new JSONObject();
 	}
+	public static JSONObject Create(Type t) {
+		JSONObject obj = Create();
+		obj.type = t;
+		switch(t) {
+			case Type.ARRAY:
+				obj.list = new List<JSONObject>();
+				break;
+			case Type.OBJECT:
+				obj.list = new List<JSONObject>();
+				obj.keys = new List<string>();
+				break;
+		}
+		return obj;
+	}
+	public static JSONObject Create(bool val) {
+		JSONObject obj = Create();
+		obj.type = Type.BOOL;
+		obj.b = val;
+		return obj;
+	}
+	public static JSONObject Create(float val) {
+		JSONObject obj = Create();
+		obj.type = Type.NUMBER;
+		obj.n = val;
+		return obj;
+	}
+	public static JSONObject Create(int val) {
+		JSONObject obj = Create();
+		obj.type = Type.NUMBER;
+		obj.n = val;
+		return obj;
+	}
+	public static JSONObject CreateStringObject(string val) {
+		JSONObject obj = Create();
+		obj.type = Type.STRING;
+		obj.str = val;
+		return obj;
+	}
+	public static JSONObject Create(string val, bool strict = false) {
+		JSONObject obj = Create();
+		obj.Parse(val, strict);
+		return obj;
+	}
+	public static JSONObject Create(AddJSONConents content) {
+		JSONObject obj = Create();
+		content.Invoke(obj);
+		return obj;
+	}
+	public static JSONObject Create(Dictionary<string, string> dic) {
+		JSONObject obj = Create();
+		obj.type = Type.OBJECT;
+		obj.keys = new List<string>();
+		obj.list = new List<JSONObject>();
+		//Not sure if it's worth removing the foreach here
+		foreach(KeyValuePair<string, string> kvp in dic) {
+			obj.keys.Add(kvp.Key);
+			obj.list.Add(CreateStringObject(kvp.Value));
+		}
+		return obj;
+	}
 	public JSONObject() { }
 	#region PARSE
 	public JSONObject(string str, bool strict = false) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
+		Parse(str, strict);
+	}
+	void Parse(string str, bool strict = false){
 		if(str != null) {
 			str = str.Trim(WHITESPACE);
 			if(strict) {
@@ -245,7 +308,7 @@ public class JSONObject {
 								if(inner.Length > 0) {
 									if(type == Type.OBJECT)
 										keys.Add(propName);
-									list.Add(new JSONObject(inner));
+									list.Add(Create(inner, strict));
 								}
 								token_tmp = offset + 1;
 							}
@@ -263,58 +326,19 @@ public class JSONObject {
 	public bool IsArray { get { return type == Type.ARRAY; } }
 	public bool IsObject { get { return type == Type.OBJECT; } }
 	public void Add(bool val) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.BOOL;
-			obj.b = val;
-			Add(obj);
-		} else
-#endif
-		Add(new JSONObject(val));
+		Add(Create(val));
 	}
 	public void Add(float val) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.NUMBER;
-			obj.n = val;
-			Add(obj);
-		} else
-#endif
-		Add(new JSONObject(val));
+		Add(Create(val));
 	}
 	public void Add(int val) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.NUMBER;
-			obj.n = val;
-			Add(obj);
-		} else
-#endif
-		Add(new JSONObject(val));
+		Add(Create(val));
 	}
 	public void Add(string str) {
-#if POOLNG
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.STRING;
-			obj.str = str;
-			Add(obj);
-		} else
-#endif
-		Add(StringObject(str));
+		Add(CreateStringObject(str));
 	}
 	public void Add(AddJSONConents content) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			content.Invoke(obj);
-			Add(obj);
-		} else
-#endif
-		Add(new JSONObject(content));
+		Add(Create(content));
 	}
 	public void Add(JSONObject obj) {
 		if(obj) {		//Don't do anything if the object is null
@@ -327,58 +351,19 @@ public class JSONObject {
 		}
 	}
 	public void AddField(string name, bool val) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.BOOL;
-			obj.b = val;
-			AddField(name, obj);
-		} else
-#endif
-			AddField(name, new JSONObject(val));
+		AddField(name, Create(val));
 	}
 	public void AddField(string name, float val) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.NUMBER;
-			obj.n = val;
-			AddField(name, obj);
-		} else
-#endif
-			AddField(name, new JSONObject(val));
+		AddField(name, Create(val));
 	}
 	public void AddField(string name, int val) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.NUMBER;
-			obj.n = val;
-			AddField(name, obj);
-		} else
-#endif
-			AddField(name, new JSONObject(val));
+		AddField(name, Create(val));
 	}
 	public void AddField(string name, AddJSONConents content) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			content.Invoke(obj);
-			AddField(name, obj);
-		} else
-#endif
-			AddField(name, new JSONObject(content));
+		AddField(name, Create(content));
 	}
 	public void AddField(string name, string val) {
-#if POOLING
-		if(releaseQueue.Count > 0) {
-			JSONObject obj = releaseQueue.Dequeue();
-			obj.type = Type.STRING;
-			obj.str = val;
-			AddField(name, obj);
-		} else
-#endif
-			AddField(name, StringObject(val));
+		AddField(name, CreateStringObject(val));
 	}
 	public void AddField(string name, JSONObject obj) {
 		if(obj) {		//Don't do anything if the object is null
@@ -397,9 +382,9 @@ public class JSONObject {
 			list.Add(obj);
 		}
 	}
-	public void SetField(string name, bool val) { SetField(name, new JSONObject(val)); }
-	public void SetField(string name, float val) { SetField(name, new JSONObject(val)); }
-	public void SetField(string name, int val) { SetField(name, new JSONObject(val)); }
+	public void SetField(string name, bool val) { SetField(name, JSONObject.Create(val)); }
+	public void SetField(string name, float val) { SetField(name, JSONObject.Create(val)); }
+	public void SetField(string name, int val) { SetField(name, JSONObject.Create(val)); }
 	public void SetField(string name, JSONObject obj) {
 		if(HasField(name)) {
 			list.Remove(this[name]);

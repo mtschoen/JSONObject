@@ -209,7 +209,7 @@ public static partial class JSONTemplates {
 		result.AddField("preWrapMode", a.preWrapMode.ToString()); 
 		result.AddField("postWrapMode", a.postWrapMode.ToString()); 
 		if(a.keys.Length > 0){
-			JSONObject keysJSON = new JSONObject();
+			JSONObject keysJSON = JSONObject.Create();
 			for(int i =0; i < a.keys.Length;i++){
 				keysJSON.Add(FromKeyframe(a.keys[i]));
 			}

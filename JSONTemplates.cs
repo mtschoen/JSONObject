@@ -28,9 +28,9 @@ public static partial class JSONTemplates {
 						parms[0] = fi.GetValue(obj);
 						val = (JSONObject)info.Invoke(null, parms);
 					} else if(fi.FieldType.Equals(typeof(string)))
-						val = new JSONObject { type = JSONObject.Type.STRING, str = fi.GetValue(obj).ToString() };
+						val = JSONObject.CreateStringObject(fi.GetValue(obj).ToString());
 					else
-						val = new JSONObject(fi.GetValue(obj).ToString());
+						val = JSONObject.Create(fi.GetValue(obj).ToString());
 				}
 				if(val) {
 					if(val.type != JSONObject.Type.NULL)
@@ -50,9 +50,9 @@ public static partial class JSONTemplates {
 						parms[0] = pi.GetValue(obj, null);
 						val = (JSONObject)info.Invoke(null, parms);
 					} else if(pi.PropertyType.Equals(typeof(string)))
-						val = new JSONObject { type = JSONObject.Type.STRING, str = pi.GetValue(obj, null).ToString() };
+						val = JSONObject.CreateStringObject(pi.GetValue(obj, null).ToString());
 					else
-						val = new JSONObject(pi.GetValue(obj, null).ToString());
+						val = JSONObject.Create(pi.GetValue(obj, null).ToString());
 				}
 				if(val) {
 					if(val.type != JSONObject.Type.NULL)
