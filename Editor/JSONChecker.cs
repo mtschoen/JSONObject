@@ -32,7 +32,7 @@ public class JSONChecker : EditorWindow {
 			totalMem = System.GC.GetTotalMemory(false);
 			//Debug.Log(System.GC.GetTotalMemory(false) + "");
 			if(j.type == JSONObject.Type.NULL)
-				GUILayout.Label("JSON fail:\n" + j);
+				GUILayout.Label("JSON fail:\n" + j.ToString(true));
 			else
 				GUILayout.Label("JSON success:\n" + j.ToString(true));
 			Debug.Log((System.GC.GetTotalMemory(false) - totalMem) + "");
