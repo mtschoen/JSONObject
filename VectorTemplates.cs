@@ -12,7 +12,7 @@ public static partial class JSONTemplates {
 		return new Vector2(x, y);
 	}
 	public static JSONObject FromVector2(Vector2 v) {
-		JSONObject vdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject vdata = JSONObject.obj;
 		if(v.x != 0)	vdata.AddField("x", v.x);
 		if(v.y != 0)	vdata.AddField("y", v.y);
 		return vdata;
@@ -21,7 +21,7 @@ public static partial class JSONTemplates {
 	 * Vector3
 	 */
 	public static JSONObject FromVector3(Vector3 v) {
-		JSONObject vdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject vdata = JSONObject.obj;
 		if(v.x != 0)	vdata.AddField("x", v.x);
 		if(v.y != 0)	vdata.AddField("y", v.y);
 		if(v.z != 0)	vdata.AddField("z", v.z);
@@ -37,7 +37,7 @@ public static partial class JSONTemplates {
 	 * Vector4
 	 */
 	public static JSONObject FromVector4(Vector4 v) {
-		JSONObject vdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject vdata = JSONObject.obj;
 		if(v.x != 0)	vdata.AddField("x", v.x);
 		if(v.y != 0)	vdata.AddField("y", v.y);
 		if(v.z != 0)	vdata.AddField("z", v.z);
@@ -55,7 +55,7 @@ public static partial class JSONTemplates {
 	 * Matrix4x4
 	 */
 	public static JSONObject FromMatrix4x4(Matrix4x4 m) {
-		JSONObject mdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject mdata = JSONObject.obj;
 		if(m.m00 != 0) mdata.AddField("m00", m.m00);
 		if(m.m01 != 0) mdata.AddField("m01", m.m01);
 		if(m.m02 != 0) mdata.AddField("m02", m.m02);
@@ -98,7 +98,7 @@ public static partial class JSONTemplates {
 	 * Quaternion
 	 */
 	public static JSONObject FromQuaternion(Quaternion q) {
-		JSONObject qdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject qdata = JSONObject.obj;
 		if(q.w != 0)	qdata.AddField("w", q.w);
 		if(q.x != 0)	qdata.AddField("x", q.x);
 		if(q.y != 0)	qdata.AddField("y", q.y);
@@ -116,7 +116,7 @@ public static partial class JSONTemplates {
 	 * Color
 	 */
 	public static JSONObject FromColor(Color c) {
-		JSONObject cdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject cdata = JSONObject.obj;
 		if(c.r != 0)	cdata.AddField("r", c.r);
 		if(c.g != 0)	cdata.AddField("g", c.g);
 		if(c.b != 0)	cdata.AddField("b", c.b);
