@@ -5,6 +5,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 
 /*
  * http://www.opensource.org/licenses/lgpl-2.1.php
@@ -15,6 +16,7 @@ using System.Collections.Generic;
 
 public class JSONObject {
 #if POOLING
+	const int MAX_POOL_SIZE = 10000;
 	public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
 #endif
 
@@ -86,7 +88,7 @@ public class JSONObject {
 		//Not sure if it's worth removing the foreach here
 		foreach(KeyValuePair<string, string> kvp in dic) {
 			keys.Add(kvp.Key);
-			list.Add(new JSONObject { type = Type.STRING, str = kvp.Value });
+			list.Add(JSONObject.CreateStringObject(str = kvp.Value));
 		}
 	}
 	public JSONObject(Dictionary<string, JSONObject> dic) {
@@ -107,7 +109,7 @@ public class JSONObject {
 		list = new List<JSONObject>(objs);
 	}
 	//Convenience function for creating a JSONObject containing a string.  This is not part of the constructor so that malformed JSON data doesn't just turn into a string object
-	public static JSONObject StringObject(string val) { return new JSONObject { type = JSONObject.Type.STRING, str = val }; }
+	public static JSONObject StringObject(string val) { return JSONObject.CreateStringObject(val); }
 	public void Absorb(JSONObject obj) {
 		list.AddRange(obj.list);
 		keys.AddRange(obj.keys);
@@ -119,8 +121,13 @@ public class JSONObject {
 	public static JSONObject Create() {
 #if POOLING
 		JSONObject result = null;
-		while(result == null && releaseQueue.Count > 0)
+		while(result == null && releaseQueue.Count > 0) {
 			result = releaseQueue.Dequeue();
+			if(result == null)
+				Debug.Log("wtf" + releaseQueue.Count);
+			else if(result.list != null)
+				Debug.Log("wtf");
+		}
 		if(result != null)
 			return result;
 #endif
@@ -235,85 +242,86 @@ public class JSONObject {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
 				} else {
-					try {
+					int token_tmp = 1;
+					/*
+					 * Checking for the following formatting (www.json.org)
+					 * object - {"field1":value,"field2":value}
+					 * array - [value,value,value]
+					 * value - string	- "string"
+					 *		 - number	- 0.0
+					 *		 - bool		- true -or- false
+					 *		 - null		- null
+					 */
+					int offset = 0;
+					switch(str[offset]) {
+						case '{':
+							type = Type.OBJECT;
+							keys = new List<string>();
+							list = new List<JSONObject>();
+							break;
+						case '[':
+							type = JSONObject.Type.ARRAY;
+							list = new List<JSONObject>();
+							break;
+						default:
+							try {
 #if USEFLOAT
-						n = System.Convert.ToSingle(str);
+								n = System.Convert.ToSingle(str);
 #else
-						n = System.Convert.ToDouble(str);				 
+								n = System.Convert.ToDouble(str);				 
 #endif
-						type = Type.NUMBER;
-					} catch(System.FormatException) {
-						int token_tmp = 1;
-						/*
-						 * Checking for the following formatting (www.json.org)
-						 * object - {"field1":value,"field2":value}
-						 * array - [value,value,value]
-						 * value - string	- "string"
-						 *		 - number	- 0.0
-						 *		 - bool		- true -or- false
-						 *		 - null		- null
-						 */
-						int offset = 0;
-						switch(str[offset]) {
-							case '{':
-								type = Type.OBJECT;
-								keys = new List<string>();
-								list = new List<JSONObject>();
-								break;
-							case '[':
-								type = JSONObject.Type.ARRAY;
-								list = new List<JSONObject>();
-								break;
-							default:
+								type = Type.NUMBER;
+							} catch(System.FormatException) {
 								type = Type.NULL;
 								Debug.LogWarning("improper JSON formatting:" + str);
-								return;
+							}
+							return;
+					}
+					string propName = "";
+					bool openQuote = false;
+					bool inProp = false;
+					int depth = 0;
+					while(++offset < str.Length) {
+						if(System.Array.IndexOf<char>(WHITESPACE, str[offset]) > -1)
+							continue;
+						if(str[offset] == '\"') {
+							if(openQuote) {
+								if(!inProp && depth == 0 && type == Type.OBJECT)
+									propName = str.Substring(token_tmp + 1, offset - token_tmp - 1);
+								openQuote = false;
+							} else {
+								if(depth == 0 && type == Type.OBJECT)
+									token_tmp = offset;
+								openQuote = true;
+							}
 						}
-						string propName = "";
-						bool openQuote = false;
-						bool inProp = false;
-						int depth = 0;
-						while(++offset < str.Length) {
-							if(System.Array.IndexOf<char>(WHITESPACE, str[offset]) > -1)
-								continue;
-							if(str[offset] == '\"') {
-								if(openQuote) {
-									if(!inProp && depth == 0 && type == Type.OBJECT)
-										propName = str.Substring(token_tmp + 1, offset - token_tmp - 1);
-									openQuote = false;
-								} else {
-									if(depth == 0 && type == Type.OBJECT)
-										token_tmp = offset;
-									openQuote = true;
-								}
-							}
-							if(openQuote)
-								continue;
-							if(type == Type.OBJECT && depth == 0) {
-								if(str[offset] == ':') {
-									token_tmp = offset + 1;
-									inProp = true;
-								}
-							}
-							
-							if(str[offset] == '[' || str[offset] == '{') {
-								depth++;
-							} else if(str[offset] == ']' || str[offset] == '}') {
-								depth--;
-							}
-							//if  (encounter a ',' at top level)  || a closing ]/}
-							if((str[offset] == ',' && depth == 0) || depth <  0) {
-								inProp = false;
-								string inner = str.Substring(token_tmp, offset - token_tmp).Trim(WHITESPACE);
-								if(inner.Length > 0) {
-									if(type == Type.OBJECT)
-										keys.Add(propName);
-									list.Add(Create(inner, strict));
-								}
+						if(openQuote)
+							continue;
+						if(type == Type.OBJECT && depth == 0) {
+							if(str[offset] == ':') {
 								token_tmp = offset + 1;
+								inProp = true;
 							}
+						}
+
+						if(str[offset] == '[' || str[offset] == '{') {
+							depth++;
+						} else if(str[offset] == ']' || str[offset] == '}') {
+							depth--;
+						}
+						//if  (encounter a ',' at top level)  || a closing ]/}
+						if((str[offset] == ',' && depth == 0) || depth < 0) {
+							inProp = false;
+							string inner = str.Substring(token_tmp, offset - token_tmp).Trim(WHITESPACE);
+							if(inner.Length > 0) {
+								if(type == Type.OBJECT)
+									keys.Add(propName);
+								list.Add(Create(inner, strict));
+							}
+							token_tmp = offset + 1;
 						}
 					}
+
 				}
 			} else type = Type.NULL;
 		} else type = Type.NULL;	//If the string is missing, this is a null
@@ -494,8 +502,12 @@ public class JSONObject {
 		n = 0;
 		b = false;
 	}
+	/// <summary>
+	/// Copy a JSONObject. This could probably work better
+	/// </summary>
+	/// <returns></returns>
 	public JSONObject Copy() {
-		return new JSONObject(print());
+		return JSONObject.Create(print());
 	}
 	/*
 	 * The Merge function is experimental. Use at your own risk.
@@ -551,37 +563,34 @@ public class JSONObject {
 			Debug.Log("reached max depth!");
 			return "";
 		}
-		string str = "";
+		StringBuilder builder = new StringBuilder();
 		switch(type) {
 			case Type.STRING:
-				str = "\"" + this.str + "\"";
-				break;
+				return builder.Append('"').Append(str).Append('"').ToString();
 			case Type.NUMBER:
 #if USEFLOAT
 				if(float.IsInfinity(n))
-					str = INFINITY;
+					return INFINITY;
 				else if(float.IsNegativeInfinity(n))
-					str = NEGINFINITY;
+					return NEGINFINITY;
 				else if(float.IsNaN(n))
-					str = NaN;
+					return NaN;
 #else
 				if(double.IsInfinity(n))
-					str = INFINITY;
+					return INFINITY;
 				else if(double.IsNegativeInfinity(n))
-					str = NEGINFINITY;
+					return NEGINFINITY;
 				else if(double.IsNaN(n))
-					str = NaN;
+					return NaN;
 #endif
 				else
-					str += n;
-				break;
-
+					return n.ToString();
 			case JSONObject.Type.OBJECT:
-				str = "{";
+				builder.Append("{");
 				if(list.Count > 0) {
 #if(PRETTY)	//for a bit more readability, comment the define above to disable system-wide
 					if(pretty)
-						str += "\n";
+						builder.Append("\n");
 #endif
 					for(int i = 0; i < list.Count; i++) {
 						string key = (string)keys[i];
@@ -590,78 +599,79 @@ public class JSONObject {
 #if(PRETTY)
 							if(pretty)
 								for(int j = 0; j < depth; j++)
-									str += "\t"; //for a bit more readability
+									builder.Append("\t"); //for a bit more readability
 #endif
-							str += "\"" + key + "\":";
-							str += obj.print(depth, pretty) + ",";
+							builder.Append(string.Format("\"{0}\":{1},", key, obj.print(depth, pretty)));
 #if(PRETTY)
 							if(pretty)
-								str += "\n";
+								builder.Append("\n");
 #endif
 						}
 					}
 #if(PRETTY)
 					if(pretty)
-						str = str.Substring(0, str.Length - 1);		//BOP: This line shows up twice on purpose: once to remove the \n if readable is true and once to remove the comma
+						builder.Length -= 2;
+					else
 #endif
-					str = str.Substring(0, str.Length - 1);
+					builder.Length--;
 				}
 #if(PRETTY)
 				if(pretty && list.Count > 0) {
-					str += "\n";
+					builder.Append("\n");
 					for(int j = 0; j < depth - 1; j++)
-						str += "\t"; //for a bit more readability
+						builder.Append("\t"); //for a bit more readability
 				}
 #endif
-				str += "}";
+				builder.Append("}");
 				break;
 			case JSONObject.Type.ARRAY:
-				str = "[";
+				builder.Append("[");
 				if(list.Count > 0) {
 #if(PRETTY)
 					if(pretty)
-						str += "\n"; //for a bit more readability
+						builder.Append("\n"); //for a bit more readability
 #endif
 					for(int i = 0; i < list.Count; i++){
 						if(list[i]){
 #if(PRETTY)
 							if(pretty)
 								for(int j = 0; j < depth; j++)
-									str += "\t"; //for a bit more readability
+									builder.Append("\t"); //for a bit more readability
 #endif
-							str += list[i].print(depth, pretty) + ",";
+							builder.Append(list[i].print(depth, pretty)).Append(",");
 #if(PRETTY)
 							if(pretty)
-								str += "\n"; //for a bit more readability
+								builder.Append("\n"); //for a bit more readability
 #endif
 						}
 					}
 #if(PRETTY)
 					if(pretty)
-						str = str.Substring(0, str.Length - 1);	//BOP: This line shows up twice on purpose: once to remove the \n if readable is true and once to remove the comma
+						builder.Length -= 2;
+					else
 #endif
-					str = str.Substring(0, str.Length - 1);
+						builder.Length--;
 				}
 #if(PRETTY)
 				if(pretty && list.Count > 0) {
-					str += "\n";
+					builder.Append("\n");
 					for(int j = 0; j < depth - 1; j++)
-						str += "\t"; //for a bit more readability
+						builder.Append("\t"); //for a bit more readability
 				}
 #endif
-				str += "]";
+				builder.Append("]");
 				break;
 			case Type.BOOL:
 				if(b)
-					str = "true";
+					builder.Append("true");
 				else
-					str = "false";
+					builder.Append("false");
 				break;
 			case Type.NULL:
-				str = "null";
+				builder.Append("null");
 				break;
 		}
-		return str;
+		return builder.ToString();
 	}
 	#endregion
 	public static implicit operator WWWForm(JSONObject obj){
@@ -729,7 +739,7 @@ public class JSONObject {
 	}
 
 	~JSONObject() {
-		if(pool) {
+		if(pool && releaseQueue.Count < MAX_POOL_SIZE) {
 			parent = null;
 			type = Type.NULL;
 			list = null;
@@ -737,6 +747,8 @@ public class JSONObject {
 			str = "";
 			n = 0;
 			b = false;
+			if(this == null)
+				Debug.Log("??");
 			releaseQueue.Enqueue(this);
 		}
 	}

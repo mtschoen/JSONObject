@@ -25,7 +25,7 @@ public class JSONChecker : EditorWindow {
 		JSON = EditorGUILayout.TextArea(JSON);
 		GUI.enabled = JSON != "";
 		if(GUILayout.Button("Check JSON")) {
-			j = new JSONObject(JSON);
+			j = JSONObject.Create(JSON);
 			Debug.Log(j.ToString(true));
 		}
 		if(j) {
