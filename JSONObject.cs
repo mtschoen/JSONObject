@@ -25,7 +25,7 @@ public class JSONObject {
 	const string NEGINFINITY = "\"NEGINFINITY\"";
 	const string NaN = "\"NaN\"";
 	static char[]  WHITESPACE = new char[] { ' ', '\r', '\n', '\t' };
-	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL }
+	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL, BAKED }
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
 	public JSONObject parent;
 	public Type type = Type.NULL;
@@ -123,10 +123,12 @@ public class JSONObject {
 		JSONObject result = null;
 		while(result == null && releaseQueue.Count > 0) {
 			result = releaseQueue.Dequeue();
+#if DEV
 			if(result == null)
 				Debug.Log("wtf" + releaseQueue.Count);
 			else if(result.list != null)
 				Debug.Log("wtf");
+#endif
 		}
 		if(result != null)
 			return result;
@@ -171,9 +173,32 @@ public class JSONObject {
 		obj.str = val;
 		return obj;
 	}
-	public static JSONObject Create(string val, bool strict = false) {
+	public static JSONObject CreateBakedObject(string val){
 		JSONObject obj = Create();
-		obj.Parse(val, strict);
+		obj.type = Type.BAKED;
+		obj.str = val;
+		return obj;
+	}
+	/// <summary>
+	/// Create a JSONObject by parsing string data
+	/// </summary>
+	/// <param name="val">The string to be parsed</param>
+	/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level, 
+	/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
+	/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully 
+	/// parse "a string" into a string-type </param>
+	/// <returns></returns>
+	public static JSONObject Create(string val, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
+		JSONObject obj = Create();
+		//bool wascrying = false;
+		//if(startCrying) {
+		//	Debug.Log(maxDepth);
+		//	wascrying = true;
+		//	startCrying = false;
+		//}
+		obj.Parse(val, maxDepth, storeExcessLevels, strict);
+		//if(wascrying)
+		//	startCrying = true;
 		return obj;
 	}
 	public static JSONObject Create(AddJSONConents content) {
@@ -195,11 +220,13 @@ public class JSONObject {
 	}
 	public JSONObject() { }
 	#region PARSE
-	public JSONObject(string str, bool strict = false) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
-		Parse(str, strict);
+	public JSONObject(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
+		Parse(str, maxDepth, storeExcessLevels, strict);
 	}
-	void Parse(string str, bool strict = false){
-		if(str != null) {
+	public static bool startCrying;
+	void Parse(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
+		Profiler.BeginSample("JSONParse");
+		if(!string.IsNullOrEmpty(str)) {
 			str = str.Trim(WHITESPACE);
 			if(strict) {
 				if(str[0] != '[' && str[0] != '{') {
@@ -284,7 +311,7 @@ public class JSONObject {
 					while(++offset < str.Length) {
 						if(System.Array.IndexOf<char>(WHITESPACE, str[offset]) > -1)
 							continue;
-						if(str[offset] == '\"') {
+						if(str[offset] == '"') {
 							if(openQuote) {
 								if(!inProp && depth == 0 && type == Type.OBJECT)
 									propName = str.Substring(token_tmp + 1, offset - token_tmp - 1);
@@ -316,15 +343,19 @@ public class JSONObject {
 							if(inner.Length > 0) {
 								if(type == Type.OBJECT)
 									keys.Add(propName);
-								list.Add(Create(inner, strict));
+								if(maxDepth != -1)															//maxDepth of -1 is the end of the line
+									list.Add(Create(inner, (maxDepth < -1) ? -2 : maxDepth - 1, false));
+								else if(storeExcessLevels)
+									list.Add(CreateBakedObject(inner));
+
 							}
 							token_tmp = offset + 1;
 						}
 					}
-
 				}
 			} else type = Type.NULL;
 		} else type = Type.NULL;	//If the string is missing, this is a null
+		Profiler.EndSample();
 	}
 	#endregion
 	public bool IsNumber { get { return type == Type.NUMBER; } }
@@ -559,13 +590,14 @@ public class JSONObject {
 	}
 	#region STRINGIFY
 	public string print(int depth, bool pretty = false) {	//Convert the JSONObject into a string
+		Profiler.BeginSample("JSONprint");
 		if(depth++ > MAX_DEPTH) {
 			Debug.Log("reached max depth!");
 			return "";
 		}
 		StringBuilder builder = new StringBuilder();
 		switch(type) {
-			case Type.STRING:
+			case Type.STRING: case Type.BAKED:
 				return builder.Append('"').Append(str).Append('"').ToString();
 			case Type.NUMBER:
 #if USEFLOAT
@@ -671,6 +703,7 @@ public class JSONObject {
 				builder.Append("null");
 				break;
 		}
+		Profiler.EndSample();
 		return builder.ToString();
 	}
 	#endregion
