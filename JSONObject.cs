@@ -2,10 +2,12 @@
 #define USEFLOAT	//Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
 //#define POOLING	//Currently using a build setting for this one (also it's experimental)
 
+using System.Diagnostics;
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using Debug = UnityEngine.Debug;
 
 /*
  * http://www.opensource.org/licenses/lgpl-2.1.php
@@ -127,7 +129,7 @@ public class JSONObject {
 			if(result == null)
 				Debug.Log("wtf" + releaseQueue.Count);
 			else if(result.list != null)
-				Debug.Log("wtf");
+				Debug.Log("wtflist " + result.list.Count);
 #endif
 		}
 		if(result != null)
@@ -174,10 +176,10 @@ public class JSONObject {
 		return obj;
 	}
 	public static JSONObject CreateBakedObject(string val){
-		JSONObject obj = Create();
-		obj.type = Type.BAKED;
-		obj.str = val;
-		return obj;
+		JSONObject bakedObject = Create();
+		bakedObject.type = Type.BAKED;
+		bakedObject.str = val;
+		return bakedObject;
 	}
 	/// <summary>
 	/// Create a JSONObject by parsing string data
@@ -585,28 +587,66 @@ public class JSONObject {
 			}
 		}
 	}
+	public void Bake() {
+		type = Type.BAKED;
+		str = print();
+	}
+	public IEnumerable BakeAsync() {
+		type = Type.BAKED;
+		foreach(string s in printAsync()) {
+			if(s == null)
+				yield return s;
+			else {
+				str = s;
+			}
+		}
+	}
 	public string print(bool pretty = false) {
-		return print(0, pretty);
+		StringBuilder builder = new StringBuilder();
+		printWatch.Reset();
+		printWatch.Start();
+		foreach(IEnumerable e in print(0, builder, pretty)) {}
+		return builder.ToString();
+	}
+	public IEnumerable<string> printAsync(bool pretty = false) {
+		StringBuilder builder = new StringBuilder();
+		printWatch.Reset();
+		printWatch.Start();
+		foreach(IEnumerable e in print(0, builder, pretty)) {
+			yield return null;
+		}
+		yield return builder.ToString();
 	}
 	#region STRINGIFY
-	public string print(int depth, bool pretty = false) {	//Convert the JSONObject into a string
+	private float maxFrameTime = 0.008f;
+	static Stopwatch printWatch = new Stopwatch();
+	public IEnumerable print(int depth, StringBuilder builder, bool pretty = false) {	//Convert the JSONObject into a string
 		Profiler.BeginSample("JSONprint");
 		if(depth++ > MAX_DEPTH) {
 			Debug.Log("reached max depth!");
-			return "";
+			yield break;
 		}
-		StringBuilder builder = new StringBuilder();
+		if(printWatch.Elapsed.TotalSeconds > maxFrameTime) {
+			printWatch.Reset();
+			yield return null;
+			printWatch.Start();
+		}
 		switch(type) {
 			case Type.STRING: case Type.BAKED:
-				return builder.Append('"').Append(str).Append('"').ToString();
+				builder.Append('"').Append(str).Append('"');
+				yield break;
 			case Type.NUMBER:
 #if USEFLOAT
-				if(float.IsInfinity(n))
-					return INFINITY;
-				else if(float.IsNegativeInfinity(n))
-					return NEGINFINITY;
-				else if(float.IsNaN(n))
-					return NaN;
+				if(float.IsInfinity(n)) {
+					builder.Append(INFINITY);
+					yield break;
+				} else if(float.IsNegativeInfinity(n)) {
+					builder.Append(NEGINFINITY);
+					yield break;
+				} else if(float.IsNaN(n)) {
+					builder.Append(NaN);
+					yield break;
+				}
 #else
 				if(double.IsInfinity(n))
 					return INFINITY;
@@ -615,8 +655,10 @@ public class JSONObject {
 				else if(double.IsNaN(n))
 					return NaN;
 #endif
-				else
-					return n.ToString();
+				else {
+					builder.Append(n.ToString());
+					yield break;
+				}
 			case JSONObject.Type.OBJECT:
 				builder.Append("{");
 				if(list.Count > 0) {
@@ -633,7 +675,10 @@ public class JSONObject {
 								for(int j = 0; j < depth; j++)
 									builder.Append("\t"); //for a bit more readability
 #endif
-							builder.Append(string.Format("\"{0}\":{1},", key, obj.print(depth, pretty)));
+							builder.Append(string.Format("\"{0}\":", key));
+							foreach(IEnumerable e in obj.print(depth, builder, pretty))
+								yield return e;
+							builder.Append('"');
 #if(PRETTY)
 							if(pretty)
 								builder.Append("\n");
@@ -670,7 +715,8 @@ public class JSONObject {
 								for(int j = 0; j < depth; j++)
 									builder.Append("\t"); //for a bit more readability
 #endif
-							builder.Append(list[i].print(depth, pretty)).Append(",");
+							list[i].print(depth, builder, pretty);
+							builder.Append(",");
 #if(PRETTY)
 							if(pretty)
 								builder.Append("\n"); //for a bit more readability
@@ -704,7 +750,6 @@ public class JSONObject {
 				break;
 		}
 		Profiler.EndSample();
-		return builder.ToString();
 	}
 	#endregion
 	public static implicit operator WWWForm(JSONObject obj){
