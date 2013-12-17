@@ -227,7 +227,7 @@ public class JSONObject {
 	}
 	public static bool startCrying;
 	void Parse(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
-		Profiler.BeginSample("JSONParse");
+		//Profiler.BeginSample("JSONParse");
 		if(!string.IsNullOrEmpty(str)) {
 			str = str.Trim(WHITESPACE);
 			if(strict) {
@@ -357,7 +357,7 @@ public class JSONObject {
 				}
 			} else type = Type.NULL;
 		} else type = Type.NULL;	//If the string is missing, this is a null
-		Profiler.EndSample();
+		//Profiler.EndSample();
 	}
 	#endregion
 	public bool IsNumber { get { return type == Type.NUMBER; } }
@@ -625,7 +625,7 @@ public class JSONObject {
 	private float maxFrameTime = 0.008f;
 	static Stopwatch printWatch = new Stopwatch();
 	public IEnumerable print(int depth, StringBuilder builder, bool pretty = false) {	//Convert the JSONObject into a string
-		Profiler.BeginSample("JSONprint");
+		//Profiler.BeginSample("JSONprint");
 		if(depth++ > MAX_DEPTH) {
 			Debug.Log("reached max depth!");
 			yield break;
@@ -757,7 +757,7 @@ public class JSONObject {
 				builder.Append("null");
 				break;
 		}
-		Profiler.EndSample();
+		//Profiler.EndSample();
 	}
 	#endregion
 	public static implicit operator WWWForm(JSONObject obj){
