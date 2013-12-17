@@ -588,17 +588,21 @@ public class JSONObject {
 		}
 	}
 	public void Bake() {
-		type = Type.BAKED;
-		str = print();
+		if(type != Type.BAKED) {
+			str = print();
+			type = Type.BAKED;
+		}
 	}
 	public IEnumerable BakeAsync() {
-		type = Type.BAKED;
-		foreach(string s in printAsync()) {
-			if(s == null)
-				yield return s;
-			else {
-				str = s;
+		if(type != Type.BAKED) {
+			foreach(string s in printAsync()) {
+				if(s == null)
+					yield return s;
+				else {
+					str = s;
+				}
 			}
+			type = Type.BAKED;
 		}
 	}
 	public string print(bool pretty = false) {
@@ -632,7 +636,10 @@ public class JSONObject {
 			printWatch.Start();
 		}
 		switch(type) {
-			case Type.STRING: case Type.BAKED:
+			case Type.BAKED:
+				builder.Append(str);
+				break;
+			case Type.STRING:
 				builder.Append('"').Append(str).Append('"');
 				yield break;
 			case Type.NUMBER:
@@ -667,8 +674,8 @@ public class JSONObject {
 						builder.Append("\n");
 #endif
 					for(int i = 0; i < list.Count; i++) {
-						string key = (string)keys[i];
-						JSONObject obj = (JSONObject)list[i];
+						string key = keys[i];
+						JSONObject obj = list[i];
 						if(obj) {
 #if(PRETTY)
 							if(pretty)
@@ -678,7 +685,7 @@ public class JSONObject {
 							builder.Append(string.Format("\"{0}\":", key));
 							foreach(IEnumerable e in obj.print(depth, builder, pretty))
 								yield return e;
-							builder.Append('"');
+							builder.Append(",");
 #if(PRETTY)
 							if(pretty)
 								builder.Append("\n");
@@ -715,7 +722,8 @@ public class JSONObject {
 								for(int j = 0; j < depth; j++)
 									builder.Append("\t"); //for a bit more readability
 #endif
-							list[i].print(depth, builder, pretty);
+							foreach(IEnumerable e in list[i].print(depth, builder, pretty))
+								yield return e;
 							builder.Append(",");
 #if(PRETTY)
 							if(pretty)
