@@ -25,17 +25,17 @@ public class JSONChecker : EditorWindow {
 		JSON = EditorGUILayout.TextArea(JSON);
 		GUI.enabled = !string.IsNullOrEmpty(JSON);
 		if(GUILayout.Button("Check JSON")) {
-			j = JSONObject.Create(JSON);
+			for(int i = 0; i < 100; i++ )
+				j = JSONObject.Create(JSON);
 			Debug.Log(j.ToString(true));
 		}
 		if(j) {
-			totalMem = System.GC.GetTotalMemory(false);
 			//Debug.Log(System.GC.GetTotalMemory(false) + "");
 			if(j.type == JSONObject.Type.NULL)
 				GUILayout.Label("JSON fail:\n" + j.ToString(true));
 			else
 				GUILayout.Label("JSON success:\n" + j.ToString(true));
-			Debug.Log((System.GC.GetTotalMemory(false) - totalMem) + "");
+			
 		}
 	}
 }

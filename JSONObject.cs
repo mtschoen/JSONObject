@@ -192,15 +192,7 @@ public class JSONObject {
 	/// <returns></returns>
 	public static JSONObject Create(string val, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
 		JSONObject obj = Create();
-		//bool wascrying = false;
-		//if(startCrying) {
-		//	Debug.Log(maxDepth);
-		//	wascrying = true;
-		//	startCrying = false;
-		//}
 		obj.Parse(val, maxDepth, storeExcessLevels, strict);
-		//if(wascrying)
-		//	startCrying = true;
 		return obj;
 	}
 	public static JSONObject Create(AddJSONConents content) {
@@ -225,9 +217,7 @@ public class JSONObject {
 	public JSONObject(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
 		Parse(str, maxDepth, storeExcessLevels, strict);
 	}
-	public static bool startCrying;
 	void Parse(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
-		//Profiler.BeginSample("JSONParse");
 		if(!string.IsNullOrEmpty(str)) {
 			str = str.Trim(WHITESPACE);
 			if(strict) {
@@ -271,7 +261,7 @@ public class JSONObject {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
 				} else {
-					int token_tmp = 1;
+					int tokenTmp = 1;
 					/*
 					 * Checking for the following formatting (www.json.org)
 					 * object - {"field1":value,"field2":value}
@@ -289,7 +279,7 @@ public class JSONObject {
 							list = new List<JSONObject>();
 							break;
 						case '[':
-							type = JSONObject.Type.ARRAY;
+							type = Type.ARRAY;
 							list = new List<JSONObject>();
 							break;
 						default:
@@ -316,11 +306,11 @@ public class JSONObject {
 						if(str[offset] == '"') {
 							if(openQuote) {
 								if(!inProp && depth == 0 && type == Type.OBJECT)
-									propName = str.Substring(token_tmp + 1, offset - token_tmp - 1);
+									propName = str.Substring(tokenTmp + 1, offset - tokenTmp - 1);
 								openQuote = false;
 							} else {
 								if(depth == 0 && type == Type.OBJECT)
-									token_tmp = offset;
+									tokenTmp = offset;
 								openQuote = true;
 							}
 						}
@@ -328,7 +318,7 @@ public class JSONObject {
 							continue;
 						if(type == Type.OBJECT && depth == 0) {
 							if(str[offset] == ':') {
-								token_tmp = offset + 1;
+								tokenTmp = offset + 1;
 								inProp = true;
 							}
 						}
@@ -341,7 +331,7 @@ public class JSONObject {
 						//if  (encounter a ',' at top level)  || a closing ]/}
 						if((str[offset] == ',' && depth == 0) || depth < 0) {
 							inProp = false;
-							string inner = str.Substring(token_tmp, offset - token_tmp).Trim(WHITESPACE);
+							string inner = str.Substring(tokenTmp, offset - tokenTmp).Trim(WHITESPACE);
 							if(inner.Length > 0) {
 								if(type == Type.OBJECT)
 									keys.Add(propName);
@@ -351,7 +341,7 @@ public class JSONObject {
 									list.Add(CreateBakedObject(inner));
 
 							}
-							token_tmp = offset + 1;
+							tokenTmp = offset + 1;
 						}
 					}
 				}
