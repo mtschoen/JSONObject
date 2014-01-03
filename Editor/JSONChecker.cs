@@ -1,6 +1,7 @@
+//#define PERFTEST        //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
+
 using UnityEngine;
 using UnityEditor;
-using System.Collections;
 
 public class JSONChecker : EditorWindow {
 	string JSON = @"{
@@ -20,13 +21,20 @@ public class JSONChecker : EditorWindow {
 	static void Init() {
 		GetWindow(typeof(JSONChecker));
 	}
-	long totalMem;
 	void OnGUI() {
 		JSON = EditorGUILayout.TextArea(JSON);
 		GUI.enabled = !string.IsNullOrEmpty(JSON);
 		if(GUILayout.Button("Check JSON")) {
-			for(int i = 0; i < 100; i++ )
-				j = JSONObject.Create(JSON);
+#if PERFTEST
+            Profiler.BeginSample("JSONParse");
+			j = JSONObject.Create(JSON);
+            Profiler.EndSample();
+            Profiler.BeginSample("JSONStringify");
+            j.ToString(true);
+            Profiler.EndSample();
+#else
+			j = JSONObject.Create(JSON);
+#endif
 			Debug.Log(j.ToString(true));
 		}
 		if(j) {
@@ -35,7 +43,7 @@ public class JSONChecker : EditorWindow {
 				GUILayout.Label("JSON fail:\n" + j.ToString(true));
 			else
 				GUILayout.Label("JSON success:\n" + j.ToString(true));
-			
+
 		}
 	}
 }

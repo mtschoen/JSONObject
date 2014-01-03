@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -11,8 +10,7 @@ using System.Reflection;
  */
 
 public static partial class JSONTemplates {
-
-	public static HashSet<object> touched = new HashSet<object>();
+	static readonly HashSet<object> touched = new HashSet<object>();
 
 	public static JSONObject TOJSON(object obj) {		//For a generic guess
 		if(touched.Add(obj)) {
@@ -27,7 +25,7 @@ public static partial class JSONTemplates {
 						object[] parms = new object[1];
 						parms[0] = fi.GetValue(obj);
 						val = (JSONObject)info.Invoke(null, parms);
-					} else if(fi.FieldType.Equals(typeof(string)))
+					} else if(fi.FieldType == typeof(string))
 						val = JSONObject.CreateStringObject(fi.GetValue(obj).ToString());
 					else
 						val = JSONObject.Create(fi.GetValue(obj).ToString());
@@ -49,7 +47,7 @@ public static partial class JSONTemplates {
 						object[] parms = new object[1];
 						parms[0] = pi.GetValue(obj, null);
 						val = (JSONObject)info.Invoke(null, parms);
-					} else if(pi.PropertyType.Equals(typeof(string)))
+					} else if(pi.PropertyType == typeof(string))
 						val = JSONObject.CreateStringObject(pi.GetValue(obj, null).ToString());
 					else
 						val = JSONObject.Create(pi.GetValue(obj, null).ToString());
@@ -61,8 +59,8 @@ public static partial class JSONTemplates {
 				}
 			}
 			return result;
-		} else
-			Debug.LogWarning("trying to save the same data twice");
+		} 
+		Debug.LogWarning("trying to save the same data twice");
 		return JSONObject.nullJO;
 	}
 }

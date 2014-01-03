@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections;
 
 public static partial class JSONTemplates {
 
@@ -126,7 +125,7 @@ public static partial class JSONTemplates {
 	public static Color ToColor(JSONObject obj) {
 		Color c = new Color();
 		for(int i = 0; i < obj.Count; i++) {
-			switch((string)obj.keys[i]) {
+			switch(obj.keys[i]) {
 			case "r": c.r = obj[i].f; break;
 			case "g": c.g = obj[i].f; break;
 			case "b": c.b = obj[i].f; break;
@@ -144,8 +143,7 @@ public static partial class JSONTemplates {
 		return result;
 	}
 	public static LayerMask ToLayerMask(JSONObject obj) {
-		LayerMask l = new LayerMask();
-		l.value = (int)obj["value"].n;
+		LayerMask l = new LayerMask {value = (int)obj["value"].n};
 		return l;
 	}
 	public static JSONObject FromRect(Rect r) {
@@ -159,7 +157,7 @@ public static partial class JSONTemplates {
 	public static Rect ToRect(JSONObject obj) {
 		Rect r = new Rect();
 		for(int i = 0; i < obj.Count; i++) {
-			switch((string)obj.keys[i]) {
+			switch(obj.keys[i]) {
 			case "x": r.x = obj[i].f; break;
 			case "y": r.y = obj[i].f; break;
 			case "height": r.height = obj[i].f; break;
@@ -179,7 +177,7 @@ public static partial class JSONTemplates {
 	public static RectOffset ToRectOffset(JSONObject obj) {
 		RectOffset r = new RectOffset();
 		for(int i = 0; i < obj.Count; i++) {
-			switch((string)obj.keys[i]) {
+			switch(obj.keys[i]) {
 			case "bottom": r.bottom = (int)obj[i].n; break;
 			case "left": r.left = (int)obj[i].n; break;
 			case "right": r.right =	(int)obj[i].n; break;
