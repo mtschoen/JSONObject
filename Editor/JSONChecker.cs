@@ -12,10 +12,12 @@ public class JSONChecker : EditorWindow {
 			""SomeBool"": true,
 			""SomeNull"": null
 		},
+		
 		""SomeEmptyObject"": { },
-		""SomeEmptyArray"": [ ]
+		""SomeEmptyArray"": [ ],
+		""EmbeddedObject"": ""{\""field\"":\""Value with \\\""escaped quotes\\\""\""}""
 	}
-}";
+}";	  //dat string literal...
 	JSONObject j;
 	[MenuItem("Window/JSONChecker")]
 	static void Init() {
