@@ -953,15 +953,12 @@ public class JSONObject {
 
 	~JSONObject() {
 		if(pool && releaseQueue.Count < MAX_POOL_SIZE) {
-			parent = null;
 			type = Type.NULL;
 			list = null;
 			keys = null;
 			str = "";
 			n = 0;
 			b = false;
-			if(this == null)
-				Debug.Log("??");
 			releaseQueue.Enqueue(this);
 		}
 	}
