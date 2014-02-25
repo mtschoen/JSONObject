@@ -368,7 +368,7 @@ public class JSONObject {
 	public bool IsString { get { return type == Type.STRING; } }
 	public bool IsBool { get { return type == Type.BOOL; } }
 	public bool IsArray { get { return type == Type.ARRAY; } }
-	public bool IsObject { get { return type == Type.OBJECT; } }
+	public bool IsObject { get { return type == Type.OBJECT || type == Type.BAKED; } }
 	public void Add(bool val) {
 		Add(Create(val));
 	}
@@ -459,7 +459,7 @@ public class JSONObject {
 #else
 	public void GetField(ref double field, string name, FieldNotFound fail = null) {
 #endif
-		if(type == Type.OBJECT) {
+		if (IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = list[index].n;
@@ -469,7 +469,7 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(ref int field, string name, FieldNotFound fail = null) {
-		if(type == Type.OBJECT) {
+		if (IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = (int)list[index].n;
@@ -479,7 +479,7 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(ref uint field, string name, FieldNotFound fail = null) {
-		if(type == Type.OBJECT) {
+		if (IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = (uint)list[index].n;
@@ -489,7 +489,7 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(ref string field, string name, FieldNotFound fail = null) {
-		if(type == Type.OBJECT) {
+		if (IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = list[index].str;
@@ -499,7 +499,7 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 	}
 	public void GetField(string name, GetFieldResponse response, FieldNotFound fail = null) {
-		if(response != null && type == Type.OBJECT) {
+		if(response != null && IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				response.Invoke(list[index]);
@@ -509,23 +509,26 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 	}
 	public JSONObject GetField(string name) {
-		if(type == Type.OBJECT)
+		if (IsObject)
 			for(int i = 0; i < keys.Count; i++)
 				if(keys[i] == name)
 					return list[i];
 		return null;
 	}
 	public bool HasFields(string[] names) {
+		if (!IsObject)
+			return false;
 		for(int i = 0; i < names.Length; i++)
 			if(!keys.Contains(names[i]))
 				return false;
 		return true;
 	}
 	public bool HasField(string name) {
-		if(type == Type.OBJECT)
-			for(int i = 0; i < keys.Count; i++)
-				if(keys[i] == name)
-					return true;
+		if (!IsObject)
+			return false;
+		for (int i = 0; i < keys.Count; i++)
+			if (keys[i] == name)
+				return true;
 		return false;
 	}
 	public void Clear() {
