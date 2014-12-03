@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 /*
  * http://www.opensource.org/licenses/lgpl-2.1.php
- * JSONObject class
+ * JSONObject class v.1.4.1
  * for use with Unity
  * Copyright Matt Schoen 2010 - 2013
  */
@@ -17,7 +17,7 @@ public class JSONObject {
 	const string INFINITY = "\"INFINITY\"";
 	const string NEGINFINITY = "\"NEGINFINITY\"";
 	const string NaN = "\"NaN\"";
-	public static char[]  WHITESPACE = new char[] { ' ', '\r', '\n', '\t' };
+	public static char[]  WHITESPACE = { ' ', '\r', '\n', '\t' };
 	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL }
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
 	public JSONObject parent;
@@ -299,59 +299,93 @@ public class JSONObject {
 	}
 	public delegate void FieldNotFound(string name);
 	public delegate void GetFieldResponse(JSONObject obj);
-	public void GetField(ref bool field, string name, FieldNotFound fail = null) {
-		if(type == JSONObject.Type.OBJECT) {
+	public bool GetField(ref bool field, string name, bool fallback) {
+		if (GetField(ref field, name)) { return true; }
+		field = fallback;
+		return false;
+	}
+	public bool GetField(ref bool field, string name, FieldNotFound fail = null) {
+		if(type == Type.OBJECT) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = list[index].b;
-				return;
+				return true;
 			}
 		} 
 		if(fail != null) fail.Invoke(name);
+		return false;
 	}
 #if USEFLOAT
-	public void GetField(ref float field, string name, FieldNotFound fail = null) {
+	public bool GetField(ref float field, string name, float fallback) {
 #else
-	public void GetField(ref double field, string name, FieldNotFound fail = null) {
+	public bool GetField(ref double field, string name, double fallback) {
 #endif
-		if(type == JSONObject.Type.OBJECT) {
+		if (GetField(ref field, name)) { return true; }
+		field = fallback;
+		return false;
+	}
+#if USEFLOAT
+	public bool GetField(ref float field, string name, FieldNotFound fail = null) {
+#else
+	public bool GetField(ref double field, string name, FieldNotFound fail = null) {
+#endif
+		if(type == Type.OBJECT) {
 			int index = keys.IndexOf(name);
 			if(index >= 0){
 				field = list[index].n;
-				return;
+				return true;
 			}
 		}
 		if(fail != null) fail.Invoke(name);
+		return false;
 	}
-	public void GetField(ref int field, string name, FieldNotFound fail = null) {
+	public bool GetField(ref int field, string name, int fallback) {
+		if (GetField(ref field, name)) { return true; }
+		field = fallback;
+		return false;
+	}
+	public bool GetField(ref int field, string name, FieldNotFound fail = null) {
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = (int)list[index].n;
-				return;
+				return true;
 			}
 		}
 		if(fail != null) fail.Invoke(name);
+		return false;
 	}
-	public void GetField(ref uint field, string name, FieldNotFound fail = null) {
+	public bool GetField(ref uint field, string name, uint fallback) {
+		if (GetField(ref field, name)) { return true; }
+		field = fallback;
+		return false;
+	}
+	public bool GetField(ref uint field, string name, FieldNotFound fail = null) {
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = (uint)list[index].n;
-				return;
+				return true;
 			}
 		}
 		if(fail != null) fail.Invoke(name);
+		return false;
 	}
-	public void GetField(ref string field, string name, FieldNotFound fail = null) {
+	public bool GetField(ref string field, string name, string fallback) {
+		if (GetField(ref field, name)) { return true; }
+		field = fallback;
+		return false;
+	}
+	public bool GetField(ref string field, string name, FieldNotFound fail = null) {
 		if(type == JSONObject.Type.OBJECT) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = list[index].str;
-				return;
+				return true;
 			}
 		}
 		if(fail != null) fail.Invoke(name);
+		return false;
 	}
 	public void GetField(string name, GetFieldResponse response, FieldNotFound fail = null) {
 		if(response != null && type == Type.OBJECT) {
