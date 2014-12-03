@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -11,8 +10,7 @@ using System.Reflection;
  */
 
 public static partial class JSONTemplates {
-
-	public static HashSet<object> touched = new HashSet<object>();
+	static readonly HashSet<object> touched = new HashSet<object>();
 
 	public static JSONObject TOJSON(object obj) {		//For a generic guess
 		if(touched.Add(obj)) {
@@ -27,10 +25,10 @@ public static partial class JSONTemplates {
 						object[] parms = new object[1];
 						parms[0] = fi.GetValue(obj);
 						val = (JSONObject)info.Invoke(null, parms);
-					} else if(fi.FieldType.Equals(typeof(string)))
-						val = new JSONObject { type = JSONObject.Type.STRING, str = fi.GetValue(obj).ToString() };
+					} else if(fi.FieldType == typeof(string))
+						val = JSONObject.CreateStringObject(fi.GetValue(obj).ToString());
 					else
-						val = new JSONObject(fi.GetValue(obj).ToString());
+						val = JSONObject.Create(fi.GetValue(obj).ToString());
 				}
 				if(val) {
 					if(val.type != JSONObject.Type.NULL)
@@ -49,10 +47,10 @@ public static partial class JSONTemplates {
 						object[] parms = new object[1];
 						parms[0] = pi.GetValue(obj, null);
 						val = (JSONObject)info.Invoke(null, parms);
-					} else if(pi.PropertyType.Equals(typeof(string)))
-						val = new JSONObject { type = JSONObject.Type.STRING, str = pi.GetValue(obj, null).ToString() };
+					} else if(pi.PropertyType == typeof(string))
+						val = JSONObject.CreateStringObject(pi.GetValue(obj, null).ToString());
 					else
-						val = new JSONObject(pi.GetValue(obj, null).ToString());
+						val = JSONObject.Create(pi.GetValue(obj, null).ToString());
 				}
 				if(val) {
 					if(val.type != JSONObject.Type.NULL)
@@ -61,8 +59,8 @@ public static partial class JSONTemplates {
 				}
 			}
 			return result;
-		} else
-			Debug.LogWarning("trying to save the same data twice");
+		} 
+		Debug.LogWarning("trying to save the same data twice");
 		return JSONObject.nullJO;
 	}
 }

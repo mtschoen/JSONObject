@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections;
 
 public static partial class JSONTemplates {
 
@@ -12,7 +11,7 @@ public static partial class JSONTemplates {
 		return new Vector2(x, y);
 	}
 	public static JSONObject FromVector2(Vector2 v) {
-		JSONObject vdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject vdata = JSONObject.obj;
 		if(v.x != 0)	vdata.AddField("x", v.x);
 		if(v.y != 0)	vdata.AddField("y", v.y);
 		return vdata;
@@ -21,7 +20,7 @@ public static partial class JSONTemplates {
 	 * Vector3
 	 */
 	public static JSONObject FromVector3(Vector3 v) {
-		JSONObject vdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject vdata = JSONObject.obj;
 		if(v.x != 0)	vdata.AddField("x", v.x);
 		if(v.y != 0)	vdata.AddField("y", v.y);
 		if(v.z != 0)	vdata.AddField("z", v.z);
@@ -37,7 +36,7 @@ public static partial class JSONTemplates {
 	 * Vector4
 	 */
 	public static JSONObject FromVector4(Vector4 v) {
-		JSONObject vdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject vdata = JSONObject.obj;
 		if(v.x != 0)	vdata.AddField("x", v.x);
 		if(v.y != 0)	vdata.AddField("y", v.y);
 		if(v.z != 0)	vdata.AddField("z", v.z);
@@ -55,7 +54,7 @@ public static partial class JSONTemplates {
 	 * Matrix4x4
 	 */
 	public static JSONObject FromMatrix4x4(Matrix4x4 m) {
-		JSONObject mdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject mdata = JSONObject.obj;
 		if(m.m00 != 0) mdata.AddField("m00", m.m00);
 		if(m.m01 != 0) mdata.AddField("m01", m.m01);
 		if(m.m02 != 0) mdata.AddField("m02", m.m02);
@@ -98,7 +97,7 @@ public static partial class JSONTemplates {
 	 * Quaternion
 	 */
 	public static JSONObject FromQuaternion(Quaternion q) {
-		JSONObject qdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject qdata = JSONObject.obj;
 		if(q.w != 0)	qdata.AddField("w", q.w);
 		if(q.x != 0)	qdata.AddField("x", q.x);
 		if(q.y != 0)	qdata.AddField("y", q.y);
@@ -116,7 +115,7 @@ public static partial class JSONTemplates {
 	 * Color
 	 */
 	public static JSONObject FromColor(Color c) {
-		JSONObject cdata = new JSONObject(JSONObject.Type.OBJECT);
+		JSONObject cdata = JSONObject.obj;
 		if(c.r != 0)	cdata.AddField("r", c.r);
 		if(c.g != 0)	cdata.AddField("g", c.g);
 		if(c.b != 0)	cdata.AddField("b", c.b);
@@ -126,7 +125,7 @@ public static partial class JSONTemplates {
 	public static Color ToColor(JSONObject obj) {
 		Color c = new Color();
 		for(int i = 0; i < obj.Count; i++) {
-			switch((string)obj.keys[i]) {
+			switch(obj.keys[i]) {
 			case "r": c.r = obj[i].f; break;
 			case "g": c.g = obj[i].f; break;
 			case "b": c.b = obj[i].f; break;
@@ -144,8 +143,7 @@ public static partial class JSONTemplates {
 		return result;
 	}
 	public static LayerMask ToLayerMask(JSONObject obj) {
-		LayerMask l = new LayerMask();
-		l.value = (int)obj["value"].n;
+		LayerMask l = new LayerMask {value = (int)obj["value"].n};
 		return l;
 	}
 	public static JSONObject FromRect(Rect r) {
@@ -159,7 +157,7 @@ public static partial class JSONTemplates {
 	public static Rect ToRect(JSONObject obj) {
 		Rect r = new Rect();
 		for(int i = 0; i < obj.Count; i++) {
-			switch((string)obj.keys[i]) {
+			switch(obj.keys[i]) {
 			case "x": r.x = obj[i].f; break;
 			case "y": r.y = obj[i].f; break;
 			case "height": r.height = obj[i].f; break;
@@ -179,7 +177,7 @@ public static partial class JSONTemplates {
 	public static RectOffset ToRectOffset(JSONObject obj) {
 		RectOffset r = new RectOffset();
 		for(int i = 0; i < obj.Count; i++) {
-			switch((string)obj.keys[i]) {
+			switch(obj.keys[i]) {
 			case "bottom": r.bottom = (int)obj[i].n; break;
 			case "left": r.left = (int)obj[i].n; break;
 			case "right": r.right =	(int)obj[i].n; break;
@@ -188,4 +186,52 @@ public static partial class JSONTemplates {
 		}
 		return r;
 	}
+	
+	public static AnimationCurve ToAnimationCurve(JSONObject obj){
+		AnimationCurve a = new AnimationCurve();
+		if(obj.HasField("keys")){
+			JSONObject keys = obj.GetField("keys");
+			for(int i =0; i < keys.list.Count;i++){
+				a.AddKey(ToKeyframe(keys[i]));
+			}
+		}
+		if(obj.HasField("preWrapMode"))
+			a.preWrapMode = (WrapMode)((int)obj.GetField("preWrapMode").n);
+		if(obj.HasField("postWrapMode"))
+			a.postWrapMode = (WrapMode)((int)obj.GetField("postWrapMode").n);
+		return a;
+	}
+	
+	public static JSONObject FromAnimationCurve(AnimationCurve a){
+		JSONObject result = JSONObject.obj;
+		result.AddField("preWrapMode", a.preWrapMode.ToString()); 
+		result.AddField("postWrapMode", a.postWrapMode.ToString()); 
+		if(a.keys.Length > 0){
+			JSONObject keysJSON = JSONObject.Create();
+			for(int i =0; i < a.keys.Length;i++){
+				keysJSON.Add(FromKeyframe(a.keys[i]));
+			}
+			result.AddField("keys", keysJSON);
+		}
+		return result;
+	}
+	
+	public static Keyframe ToKeyframe(JSONObject obj){
+		Keyframe k = new Keyframe(obj.HasField("time")? obj.GetField("time").n : 0, obj.HasField("value")? obj.GetField("value").n : 0);
+		if(obj.HasField("inTangent")) k.inTangent = obj.GetField("inTangent").n;
+		if(obj.HasField("outTangent")) k.outTangent = obj.GetField("outTangent").n;
+		if(obj.HasField("tangentMode")) k.tangentMode = (int)obj.GetField("tangentMode").n;
+		
+		return k;
+	}
+	public static JSONObject FromKeyframe(Keyframe k){
+		JSONObject result = JSONObject.obj;
+		if(k.inTangent != 0)	result.AddField("inTangent", k.inTangent);
+		if(k.outTangent != 0)	result.AddField("outTangent", k.outTangent);
+		if(k.tangentMode != 0)	result.AddField("tangentMode", k.tangentMode);
+		if(k.time != 0)	result.AddField("time", k.time);
+		if(k.value != 0)	result.AddField("value", k.value);
+		return result;
+	}
+	
 }

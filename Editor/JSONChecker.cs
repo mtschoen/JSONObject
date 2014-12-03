@@ -1,7 +1,7 @@
-using System.Security.Policy;
+//#define PERFTEST        //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
+
 using UnityEngine;
 using UnityEditor;
-using System.Collections;
 
 public class JSONChecker : EditorWindow {
 	string JSON = @"{
@@ -12,10 +12,12 @@ public class JSONChecker : EditorWindow {
 			""SomeBool"": true,
 			""SomeNull"": null
 		},
+		
 		""SomeEmptyObject"": { },
-		""SomeEmptyArray"": [ ]
+		""SomeEmptyArray"": [ ],
+		""EmbeddedObject"": ""{\""field\"":\""Value with \\\""escaped quotes\\\""\""}""
 	}
-}";
+}";	  //dat string literal...
 	string URL = "";
 	JSONObject j;
 	[MenuItem("Window/JSONChecker")]
@@ -24,9 +26,18 @@ public class JSONChecker : EditorWindow {
 	}
 	void OnGUI() {
 		JSON = EditorGUILayout.TextArea(JSON);
-		GUI.enabled = JSON != "";
+		GUI.enabled = !string.IsNullOrEmpty(JSON);
 		if(GUILayout.Button("Check JSON")) {
-			j = new JSONObject(JSON);
+#if PERFTEST
+            Profiler.BeginSample("JSONParse");
+			j = JSONObject.Create(JSON);
+            Profiler.EndSample();
+            Profiler.BeginSample("JSONStringify");
+            j.ToString(true);
+            Profiler.EndSample();
+#else
+			j = JSONObject.Create(JSON);
+#endif
 			Debug.Log(j.ToString(true));
 		}
 		EditorGUILayout.Separator();
@@ -42,10 +53,12 @@ public class JSONChecker : EditorWindow {
 			}
 		}
 		if(j) {
+			//Debug.Log(System.GC.GetTotalMemory(false) + "");
 			if(j.type == JSONObject.Type.NULL)
 				GUILayout.Label("JSON fail:\n" + j.ToString(true));
 			else
 				GUILayout.Label("JSON success:\n" + j.ToString(true));
+
 		}
 	}
 }
