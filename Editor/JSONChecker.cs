@@ -9,6 +9,7 @@ public class JSONChecker : EditorWindow {
 		""SomeText"": ""Blah"",
 		""SomeObject"": {
 			""SomeNumber"": 42,
+			""SomeFloat"": 13.37,
 			""SomeBool"": true,
 			""SomeNull"": null
 		},
@@ -41,13 +42,15 @@ public class JSONChecker : EditorWindow {
 			Debug.Log(j.ToString(true));
 		}
 		EditorGUILayout.Separator();
-		EditorGUILayout.TextField("URL", URL);
+		URL = EditorGUILayout.TextField("URL", URL);
 		if (GUILayout.Button("Get JSON")) {
+			Debug.Log(URL);
 			WWW test = new WWW(URL);
 			while (!test.isDone) ;
 			if (!string.IsNullOrEmpty(test.error)) {
 				Debug.Log(test.error);
 			} else {
+				Debug.Log(test.text);
 				j = new JSONObject(test.text);
 				Debug.Log(j.ToString(true));
 			}

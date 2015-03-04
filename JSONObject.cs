@@ -27,7 +27,7 @@ public class JSONObject {
 	const string INFINITY = "\"INFINITY\"";
 	const string NEGINFINITY = "\"NEGINFINITY\"";
 	const string NaN = "\"NaN\"";
-	public static readonly char[] WHITESPACE = { ' ', '\r', '\n', '\t', '\uFEFF' };
+	public static readonly char[] WHITESPACE = { ' ', '\r', '\n', '\t', '\uFEFF', '\u0009' };
 	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL, BAKED }
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
 	public Type type = Type.NULL;
