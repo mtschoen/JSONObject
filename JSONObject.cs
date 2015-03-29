@@ -57,7 +57,7 @@ public class JSONObject {
 	}
 #endif
 	public bool b;
-	public delegate void AddJSONConents(JSONObject self);
+	public delegate void AddJSONContents(JSONObject self);
 
 	public static JSONObject nullJO { get { return Create(Type.NULL); } }	//an empty, null object
 	public static JSONObject obj { get { return Create(Type.OBJECT); } }		//an empty object
@@ -110,7 +110,7 @@ public class JSONObject {
 			list.Add(kvp.Value);
 		}
 	}
-	public JSONObject(AddJSONConents content) {
+	public JSONObject(AddJSONContents content) {
 		content.Invoke(this);
 	}
 	public JSONObject(JSONObject[] objs) {
@@ -204,7 +204,7 @@ public class JSONObject {
 		obj.Parse(val, maxDepth, storeExcessLevels, strict);
 		return obj;
 	}
-	public static JSONObject Create(AddJSONConents content) {
+	public static JSONObject Create(AddJSONContents content) {
 		JSONObject obj = Create();
 		content.Invoke(obj);
 		return obj;
@@ -392,7 +392,7 @@ public class JSONObject {
 	public void Add(string str) {
 		Add(CreateStringObject(str));
 	}
-	public void Add(AddJSONConents content) {
+	public void Add(AddJSONContents content) {
 		Add(Create(content));
 	}
 	public void Add(JSONObject obj) {
@@ -414,7 +414,7 @@ public class JSONObject {
 	public void AddField(string name, int val) {
 		AddField(name, Create(val));
 	}
-	public void AddField(string name, AddJSONConents content) {
+	public void AddField(string name, AddJSONContents content) {
 		AddField(name, Create(content));
 	}
 	public void AddField(string name, string val) {
