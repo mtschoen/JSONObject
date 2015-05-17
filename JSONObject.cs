@@ -237,7 +237,7 @@ public class JSONObject {
 				}
 			}
 			if(str.Length > 0) {
-#if UNITY_WP8
+#if UNITY_WP8 || UNITY_WSA
 				if (str == "true") {
 					type = Type.BOOL;
 					b = true;
