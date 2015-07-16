@@ -456,10 +456,9 @@ public class JSONObject {
 	}
 	public delegate void FieldNotFound(string name);
 	public delegate void GetFieldResponse(JSONObject obj);
-	public bool GetField(ref bool field, string name, bool fallback) {
-		if (GetField(ref field, name)) { return true; }
+	public bool GetField(out bool field, string name, bool fallback) {
 		field = fallback;
-		return false;
+		return GetField(ref field, name);
 	}
 	public bool GetField(ref bool field, string name, FieldNotFound fail = null) {
 		if(type == Type.OBJECT) {
@@ -473,13 +472,12 @@ public class JSONObject {
 		return false;
 	}
 #if USEFLOAT
-	public bool GetField(ref float field, string name, float fallback) {
+	public bool GetField(out float field, string name, float fallback) {
 #else
-	public bool GetField(ref double field, string name, double fallback) {
+	public bool GetField(out double field, string name, double fallback) {
 #endif
-		if (GetField(ref field, name)) { return true; }
 		field = fallback;
-		return false;
+		return GetField(ref field, name);
 	}
 #if USEFLOAT
 	public bool GetField(ref float field, string name, FieldNotFound fail = null) {
@@ -496,10 +494,9 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 		return false;
 	}
-	public bool GetField(ref int field, string name, int fallback) {
-		if (GetField(ref field, name)) { return true; }
+	public bool GetField(out int field, string name, int fallback) {
 		field = fallback;
-		return false;
+		return GetField(ref field, name);
 	}
 	public bool GetField(ref int field, string name, FieldNotFound fail = null) {
 		if (IsObject) {
@@ -512,10 +509,9 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 		return false;
 	}
-	public bool GetField(ref uint field, string name, uint fallback) {
-		if (GetField(ref field, name)) { return true; }
+	public bool GetField(out uint field, string name, uint fallback) {
 		field = fallback;
-		return false;
+		return GetField(ref field, name);
 	}
 	public bool GetField(ref uint field, string name, FieldNotFound fail = null) {
 		if (IsObject) {
@@ -528,10 +524,9 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 		return false;
 	}
-	public bool GetField(ref string field, string name, string fallback) {
-		if (GetField(ref field, name)) { return true; }
+	public bool GetField(out string field, string name, string fallback) {
 		field = fallback;
-		return false;
+		return GetField(ref field, name);
 	}
 	public bool GetField(ref string field, string name, FieldNotFound fail = null) {
 		if (IsObject) {
