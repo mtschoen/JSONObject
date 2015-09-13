@@ -3,13 +3,14 @@
 #define USEFLOAT	//Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
 //#define POOLING	//Currently using a build setting for this one (also it's experimental)
 
-using System.Diagnostics;
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
 using UnityEngine;
+using Debug = UnityEngine.Debug;
+#endif
+using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using Debug = UnityEngine.Debug;
-
 /*
  * http://www.opensource.org/licenses/lgpl-2.1.php
  * JSONObject class v.1.4.1
@@ -56,6 +57,8 @@ public class JSONObject {
 		}
 	}
 #endif
+	public bool useInt;
+	public long i;
 	public bool b;
 	public delegate void AddJSONContents(JSONObject self);
 
@@ -90,6 +93,18 @@ public class JSONObject {
 		n = d;
 	}
 #endif
+	public JSONObject(int i) {
+		type = Type.NUMBER;
+		this.i = i;
+		useInt = true;
+		n = i;
+	}
+	public JSONObject(long l) {
+		type = Type.NUMBER;
+		i = l;
+		useInt = true;
+		n = l;
+	}
 	public JSONObject(Dictionary<string, string> dic) {
 		type = Type.OBJECT;
 		keys = new List<string>();
@@ -124,6 +139,8 @@ public class JSONObject {
 		keys.AddRange(obj.keys);
 		str = obj.str;
 		n = obj.n;
+		useInt = obj.useInt;
+		i = obj.i;
 		b = obj.b;
 		type = obj.type;
 	}
@@ -135,9 +152,9 @@ public class JSONObject {
 #if DEV
 			//The following cases should NEVER HAPPEN (but they do...)
 			if(result == null)
-				Debug.Log("wtf " + releaseQueue.Count);
+				Debug.WriteLine("wtf " + releaseQueue.Count);
 			else if(result.list != null)
-				Debug.Log("wtflist " + result.list.Count);
+				Debug.WriteLine("wtflist " + result.list.Count);
 #endif
 		}
 		if(result != null)
@@ -175,6 +192,16 @@ public class JSONObject {
 		JSONObject obj = Create();
 		obj.type = Type.NUMBER;
 		obj.n = val;
+		obj.useInt = true;
+		obj.i = val;
+		return obj;
+	}
+	public static JSONObject Create(long val) {
+		JSONObject obj = Create();
+		obj.type = Type.NUMBER;
+		obj.n = val;
+		obj.useInt = true;
+		obj.i = val;
 		return obj;
 	}
 	public static JSONObject CreateStringObject(string val) {
@@ -232,7 +259,12 @@ public class JSONObject {
 			if(strict) {
 				if(str[0] != '[' && str[0] != '{') {
 					type = Type.NULL;
-					Debug.LogWarning("Improper (strict) JSON formatting.  First character must be [ or {");
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
+					Debug.LogWarning
+#else
+					Debug.WriteLine
+#endif
+						("Improper (strict) JSON formatting.  First character must be [ or {");
 					return;
 				}
 			}
@@ -309,10 +341,19 @@ public class JSONObject {
 #else
 								n = System.Convert.ToDouble(str);				 
 #endif
+								if(!str.Contains(".")) {
+									i = System.Convert.ToInt64(str);
+									useInt = true;
+								}
 								type = Type.NUMBER;
 							} catch(System.FormatException) {
 								type = Type.NULL;
-								Debug.LogWarning("improper JSON formatting:" + str);
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
+								Debug.LogWarning
+#else
+								Debug.WriteLine
+#endif
+								("improper JSON formatting:" + str);
 							}
 							return;
 					}
@@ -414,6 +455,9 @@ public class JSONObject {
 	public void AddField(string name, int val) {
 		AddField(name, Create(val));
 	}
+	public void AddField(string name, long val) {
+		AddField(name, Create(val));
+	}
 	public void AddField(string name, AddJSONContents content) {
 		AddField(name, Create(content));
 	}
@@ -499,10 +543,25 @@ public class JSONObject {
 		return GetField(ref field, name);
 	}
 	public bool GetField(ref int field, string name, FieldNotFound fail = null) {
-		if (IsObject) {
+		if(IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = (int)list[index].n;
+				return true;
+			}
+		}
+		if(fail != null) fail.Invoke(name);
+		return false;
+	}
+	public bool GetField(out long field, string name, long fallback) {
+		field = fallback;
+		return GetField(ref field, name);
+	}
+	public bool GetField(ref long field, string name, FieldNotFound fail = null) {
+		if(IsObject) {
+			int index = keys.IndexOf(name);
+			if(index >= 0) {
+				field = (long)list[index].n;
 				return true;
 			}
 		}
@@ -514,7 +573,7 @@ public class JSONObject {
 		return GetField(ref field, name);
 	}
 	public bool GetField(ref uint field, string name, FieldNotFound fail = null) {
-		if (IsObject) {
+		if(IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = (uint)list[index].n;
@@ -529,7 +588,7 @@ public class JSONObject {
 		return GetField(ref field, name);
 	}
 	public bool GetField(ref string field, string name, FieldNotFound fail = null) {
-		if (IsObject) {
+		if(IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
 				field = list[index].str;
@@ -550,14 +609,14 @@ public class JSONObject {
 		if(fail != null) fail.Invoke(name);
 	}
 	public JSONObject GetField(string name) {
-		if (IsObject)
+		if(IsObject)
 			for(int i = 0; i < keys.Count; i++)
 				if(keys[i] == name)
 					return list[i];
 		return null;
 	}
 	public bool HasFields(string[] names) {
-		if (!IsObject)
+		if(!IsObject)
 			return false;
 		for(int i = 0; i < names.Length; i++)
 			if(!keys.Contains(names[i]))
@@ -565,10 +624,10 @@ public class JSONObject {
 		return true;
 	}
 	public bool HasField(string name) {
-		if (!IsObject)
+		if(!IsObject)
 			return false;
-		for (int i = 0; i < keys.Count; i++)
-			if (keys[i] == name)
+		for(int i = 0; i < keys.Count; i++)
+			if(keys[i] == name)
 				return true;
 		return false;
 	}
@@ -620,7 +679,12 @@ public class JSONObject {
 			}
 		} else if(left.type == Type.ARRAY && right.type == Type.ARRAY) {
 			if(right.Count > left.Count) {
-				Debug.LogError("Cannot merge arrays when right object has more elements");
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
+				Debug.LogError
+#else
+				Debug.WriteLine
+#endif
+				("Cannot merge arrays when right object has more elements");
 				return;
 			}
 			for(int i = 0; i < right.list.Count; i++) {
@@ -674,7 +738,12 @@ public class JSONObject {
 	IEnumerable StringifyAsync(int depth, StringBuilder builder, bool pretty = false) {	//Convert the JSONObject into a string
 		//Profiler.BeginSample("JSONprint");
 		if(depth++ > MAX_DEPTH) {
-			Debug.Log("reached max depth!");
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
+			Debug.Log
+#else
+			Debug.WriteLine
+#endif
+			("reached max depth!");
 			yield break;
 		}
 		if(printWatch.Elapsed.TotalSeconds > maxFrameTime) {
@@ -690,13 +759,16 @@ public class JSONObject {
 				builder.AppendFormat("\"{0}\"", str);
 				break;
 			case Type.NUMBER:
+				if(useInt) {
+					builder.Append(i.ToString());
+				} else {
 #if USEFLOAT
-				if(float.IsInfinity(n))
-					builder.Append(INFINITY);
-				else if(float.IsNegativeInfinity(n))
-					builder.Append(NEGINFINITY);
-				else if(float.IsNaN(n))
-					builder.Append(NaN);
+					if(float.IsInfinity(n))
+						builder.Append(INFINITY);
+					else if(float.IsNegativeInfinity(n))
+						builder.Append(NEGINFINITY);
+					else if(float.IsNaN(n))
+						builder.Append(NaN);
 #else
 				if(double.IsInfinity(n))
 					builder.Append(INFINITY);
@@ -705,13 +777,14 @@ public class JSONObject {
 				else if(double.IsNaN(n))
 					builder.Append(NaN);
 #endif
-				else
-					builder.Append(n.ToString());
+					else
+						builder.Append(n.ToString());
+				}
 				break;
 			case Type.OBJECT:
 				builder.Append("{");
 				if(list.Count > 0) {
-#if(PRETTY)	//for a bit more readability, comment the define above to disable system-wide
+#if(PRETTY)		//for a bit more readability, comment the define above to disable system-wide
 					if(pretty)
 						builder.Append("\n");
 #endif
@@ -739,7 +812,7 @@ public class JSONObject {
 						builder.Length -= 2;
 					else
 #endif
-					builder.Length--;
+						builder.Length--;
 				}
 #if(PRETTY)
 				if(pretty && list.Count > 0) {
@@ -811,7 +884,12 @@ public class JSONObject {
 	void Stringify(int depth, StringBuilder builder, bool pretty = false) {	//Convert the JSONObject into a string
 		//Profiler.BeginSample("JSONprint");
 		if(depth++ > MAX_DEPTH) {
-			Debug.Log("reached max depth!");
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
+			Debug.Log
+#else
+			Debug.WriteLine
+#endif
+			("reached max depth!");
 			return;
 		}
 		switch(type) {
@@ -822,13 +900,16 @@ public class JSONObject {
 				builder.AppendFormat("\"{0}\"", str);
 				break;
 			case Type.NUMBER:
+				if(useInt) {
+					builder.Append(i.ToString());
+				} else {
 #if USEFLOAT
-				if(float.IsInfinity(n))
-					builder.Append(INFINITY);
-				else if(float.IsNegativeInfinity(n))
-					builder.Append(NEGINFINITY);
-				else if(float.IsNaN(n))
-					builder.Append(NaN);
+					if(float.IsInfinity(n))
+						builder.Append(INFINITY);
+					else if(float.IsNegativeInfinity(n))
+						builder.Append(NEGINFINITY);
+					else if(float.IsNaN(n))
+						builder.Append(NaN);
 #else
 				if(double.IsInfinity(n))
 					builder.Append(INFINITY);
@@ -837,13 +918,14 @@ public class JSONObject {
 				else if(double.IsNaN(n))
 					builder.Append(NaN);
 #endif
-				else
-					builder.Append(n.ToString());
+					else
+						builder.Append(n.ToString());
+				}
 				break;
 			case Type.OBJECT:
 				builder.Append("{");
 				if(list.Count > 0) {
-#if(PRETTY)	//for a bit more readability, comment the define above to disable system-wide
+#if(PRETTY)		//for a bit more readability, comment the define above to disable system-wide
 					if(pretty)
 						builder.Append("\n");
 #endif
@@ -932,6 +1014,7 @@ public class JSONObject {
 		//Profiler.EndSample();
 	}
 	#endregion
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
 	public static implicit operator WWWForm(JSONObject obj) {
 		WWWForm form = new WWWForm();
 		for(int i = 0; i < obj.list.Count; i++) {
@@ -945,6 +1028,7 @@ public class JSONObject {
 		}
 		return form;
 	}
+#endif
 	public JSONObject this[int index] {
 		get {
 			if(list.Count > index) return list[index];
@@ -978,12 +1062,24 @@ public class JSONObject {
 					case Type.STRING: result.Add(keys[i], val.str); break;
 					case Type.NUMBER: result.Add(keys[i], val.n + ""); break;
 					case Type.BOOL: result.Add(keys[i], val.b + ""); break;
-					default: Debug.LogWarning("Omitting object: " + keys[i] + " in dictionary conversion"); break;
+					default:
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
+						Debug.LogWarning
+#else
+						Debug.WriteLine
+#endif
+						("Omitting object: " + keys[i] + " in dictionary conversion");
+						break;
 				}
 			}
 			return result;
 		}
-		Debug.LogWarning("Tried to turn non-Object JSONObject into a dictionary");
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5
+		Debug.Log
+#else
+		Debug.WriteLine
+#endif
+		("Tried to turn non-Object JSONObject into a dictionary");
 		return null;
 	}
 	public static implicit operator bool(JSONObject o) {
