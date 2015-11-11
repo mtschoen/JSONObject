@@ -327,6 +327,8 @@ public class JSONObject {
 				} else if(str[0] == '"') {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
+					if (!string.IsNullOrEmpty(this.str))
+						this.str.Replace("\\\"", "\"");
 				} else {
 					int tokenTmp = 1;
 					/*
@@ -626,8 +628,12 @@ public class JSONObject {
 	public JSONObject GetField(string name) {
 		if(IsObject)
 			for(int i = 0; i < keys.Count; i++)
-				if(keys[i] == name)
+				if(keys[i] == name){
+					if (list[i].IsString){
+						list[i].str = list[i].str.Replace("\\\"", "\"");
+					}
 					return list[i];
+				}
 		return null;
 	}
 	public bool HasFields(string[] names) {
@@ -771,7 +777,9 @@ public class JSONObject {
 				builder.Append(str);
 				break;
 			case Type.STRING:
-				builder.AppendFormat("\"{0}\"", str);
+				if (!string.IsNullOrEmpty(str))
+					builder.AppendFormat("\"{0}\"", str.Replace ("\"", "\\\""));
+				else builder.AppendFormat("\"{0}\"", str);
 				break;
 			case Type.NUMBER:
 				if(useInt) {
@@ -912,7 +920,9 @@ public class JSONObject {
 				builder.Append(str);
 				break;
 			case Type.STRING:
-				builder.AppendFormat("\"{0}\"", str);
+				if (!string.IsNullOrEmpty(str))
+					builder.AppendFormat("\"{0}\"", str.Replace ("\"", "\\\""));
+				else builder.AppendFormat("\"{0}\"", str);
 				break;
 			case Type.NUMBER:
 				if(useInt) {
