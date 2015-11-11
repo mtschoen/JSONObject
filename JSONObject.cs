@@ -328,7 +328,7 @@ public class JSONObject {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
 					if (!string.IsNullOrEmpty(this.str))
-						this.str.Replace("\\\"", "\"");
+						this.str = this.str.Replace("\\\"", "\"");
 				} else {
 					int tokenTmp = 1;
 					/*
@@ -629,9 +629,6 @@ public class JSONObject {
 		if(IsObject)
 			for(int i = 0; i < keys.Count; i++)
 				if(keys[i] == name){
-					if (list[i].IsString){
-						list[i].str = list[i].str.Replace("\\\"", "\"");
-					}
 					return list[i];
 				}
 		return null;
