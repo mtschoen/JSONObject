@@ -33,7 +33,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-public class JSONObject {
+public class JSONObject : IEnumerable {
 #if POOLING
 	const int MAX_POOL_SIZE = 10000;
 	public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
@@ -1120,4 +1120,64 @@ public class JSONObject {
 		}
 	}
 #endif
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return (IEnumerator)GetEnumerator();
+    }
+
+    public JSONObjectEnumer GetEnumerator()
+    {
+        return new JSONObjectEnumer(this);
+    }
+}
+
+public class JSONObjectEnumer : IEnumerator
+{
+    public JSONObject _jobj;
+
+    // Enumerators are positioned before the first element
+    // until the first MoveNext() call.
+    int position = -1;
+
+    public JSONObjectEnumer(JSONObject jsonObject)
+    {
+        Debug.Assert(jsonObject.isContainer); //must be an array or object to itterate
+        _jobj = jsonObject;
+    }
+
+    public bool MoveNext()
+    {
+        position++;
+        return (position < _jobj.Count);
+    }
+
+    public void Reset()
+    {
+        position = -1;
+    }
+
+    object IEnumerator.Current
+    {
+        get
+        {
+            return Current;
+        }
+    }
+
+    public JSONObject Current
+    {
+        get
+        {
+            if (_jobj.IsArray)
+            {
+                return _jobj[position];
+            }
+            else
+            {
+                string key = _jobj.keys[position];
+                return _jobj[key];
+            }
+        }
+    }
 }
