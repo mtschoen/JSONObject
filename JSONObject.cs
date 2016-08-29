@@ -416,7 +416,7 @@ public class JSONObject : IEnumerable {
 								if(type == Type.OBJECT)
 									keys.Add(propName);
 								if(maxDepth != -1)															//maxDepth of -1 is the end of the line
-									list.Add(Create(inner, (maxDepth < -1) ? -2 : maxDepth - 1));
+									list.Add(Create(inner, (maxDepth < -1) ? -2 : maxDepth - 1, storeExcessLevels));
 								else if(storeExcessLevels)
 									list.Add(CreateBakedObject(inner));
 
