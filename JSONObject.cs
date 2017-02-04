@@ -11,19 +11,17 @@ using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+
 /*
 Copyright (c) 2015 Matt Schoen
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -44,6 +42,7 @@ public class JSONObject : IEnumerable {
 	const string NEGINFINITY = "\"NEGINFINITY\"";
 	const string NaN = "\"NaN\"";
 	public static readonly char[] WHITESPACE = { ' ', '\r', '\n', '\t', '\uFEFF', '\u0009' };
+	static char[] escapableChars = new char[] {'\'', '"', '\\', '\n', '\r', '\t', '\b', '\f' };
 	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL, BAKED }
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
 	public Type type = Type.NULL;
@@ -327,6 +326,7 @@ public class JSONObject : IEnumerable {
 				} else if(str[0] == '"') {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
+					this.str = Replace1LevelSlash(this.str);
 				} else {
 					int tokenTmp = 1;
 					/*
@@ -429,7 +429,34 @@ public class JSONObject : IEnumerable {
 		} else type = Type.NULL;	//If the string is missing, this is a null
 		//Profiler.EndSample();
 	}
+	public static string Replace1LevelSlash(string s){
+		if (string.IsNullOrEmpty (s))
+			return s;
+		int offset = 0;
+		StringBuilder sb = new StringBuilder ();
+		while (offset < s.Length) {
+			if (s[offset] == '\\'){
+				//eat 1
+				if (s.Length != offset + 1 && IsEscapableChar(s[offset + 1])){
+					sb.Append(s[offset + 1]);
+					offset += 2;
+					continue;
+				}
+			}
+			sb.Append(s[offset]);
+			offset++;
+		}
+		return sb.ToString ();
+	}
 	#endregion
+	public static bool IsEscapableChar(char c){
+		for (int i = 0; i < escapableChars.Length; i++) {
+			if (escapableChars[i] == c){
+				return true;
+			}
+		}
+		return false;
+	}
 	public bool IsNumber { get { return type == Type.NUMBER; } }
 	public bool IsNull { get { return type == Type.NULL; } }
 	public bool IsString { get { return type == Type.STRING; } }
@@ -912,7 +939,10 @@ public class JSONObject : IEnumerable {
 				builder.Append(str);
 				break;
 			case Type.STRING:
-				builder.AppendFormat("\"{0}\"", str);
+				if (string.IsNullOrEmpty(str))
+					builder.AppendFormat("\"{0}\"", str);
+				else	
+					builder.AppendFormat("\"{0}\"", str.Replace ("\\","\\\\").Replace ("\"","\\\""));
 				break;
 			case Type.NUMBER:
 				if(useInt) {
