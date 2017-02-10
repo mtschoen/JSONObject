@@ -268,6 +268,88 @@ public class JSONObject : IEnumerable {
 	public JSONObject(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {	//create a new JSONObject from a string (this will also create any children, and parse the whole string)
 		Parse(str, maxDepth, storeExcessLevels, strict);
 	}
+
+	// Decodes a JSON String that has escapes in it (backslashes)
+	// per www.json.org. This assumes the leading and trailing
+	// double-quote have already been removed.
+	// Douglas P. Fields, Jr.
+	public static string DecodeStringDPF(string s) {
+		if (s == null) {
+			return null;
+		}
+
+		const char backslash = '\\';
+
+		if (s.IndexOf(backslash) < 0) {
+			return s;
+		}
+
+		StringBuilder r = new StringBuilder(s.Length);
+		bool escaped = false;
+		int unicode = 0;
+		string unival = "";
+
+		foreach (char c in s) {
+			if (unicode > 0) {
+				// Got a part of a 4-char unicode encoding
+				unival += c;
+				unicode--;
+				if (unicode <= 0) {
+					int val;
+					// int vs. Int32? Hm.
+					if (int.TryParse(unival, NumberStyles.HexNumber, null, out val)) {
+						r.Append((char)val);
+					}
+				}
+			} else if (escaped) {
+				// Just got a backslash last character
+				escaped = false;
+				switch (c) {
+				case 'b':
+					// Backspace
+					r.Append('\b');
+					break;
+				case 'f':
+					// Form feed
+					r.Append('\f');
+					break;
+				case 'n':
+					// Newline
+					r.Append('\n');
+					break;
+				case 'r':
+					// Carriage return
+					r.Append('\r');
+					break;
+				case 't':
+					// Horizontal tab
+					r.Append('\t');
+					break;
+				case 'u':
+					// 4 hex digits
+					unicode = 4;
+					unival = "";
+					break;
+				default:
+					// \, / and ", plus anything else by default
+					r.Append(c);
+					break;
+				}
+			} else {
+				// Not decoding 4-hex
+				// Not the character after a backslash
+				if (c == backslash) {
+					escaped = true;
+				} else {
+					r.Append(c);
+				}
+			}
+		}
+
+		return r.ToString();
+	} // DecodeStringDPF
+
+
 	void Parse(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
 		if(!string.IsNullOrEmpty(str)) {
 			str = str.Trim(WHITESPACE);
@@ -327,6 +409,7 @@ public class JSONObject : IEnumerable {
 				} else if(str[0] == '"') {
 					type = Type.STRING;
 					this.str = str.Substring(1, str.Length - 2);
+					this.str = DecodeStringDPF(this.str);
 				} else {
 					int tokenTmp = 1;
 					/*
