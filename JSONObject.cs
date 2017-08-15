@@ -28,6 +28,7 @@ public class JSONObject {
 	const string INFINITY = "\"INFINITY\"";
 	const string NEGINFINITY = "\"NEGINFINITY\"";
 	const string NaN = "\"NaN\"";
+	const string NEWLINE = "\r\n";
 	public static readonly char[] WHITESPACE = { ' ', '\r', '\n', '\t', '\uFEFF', '\u0009' };
 	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL, BAKED }
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
@@ -786,7 +787,7 @@ public class JSONObject {
 				if(list.Count > 0) {
 #if(PRETTY)		//for a bit more readability, comment the define above to disable system-wide
 					if(pretty)
-						builder.Append("\n");
+						builder.Append(NEWLINE);
 #endif
 					for(int i = 0; i < list.Count; i++) {
 						string key = keys[i];
@@ -803,7 +804,7 @@ public class JSONObject {
 							builder.Append(",");
 #if(PRETTY)
 							if(pretty)
-								builder.Append("\n");
+								builder.Append(NEWLINE);
 #endif
 						}
 					}
@@ -816,7 +817,7 @@ public class JSONObject {
 				}
 #if(PRETTY)
 				if(pretty && list.Count > 0) {
-					builder.Append("\n");
+					builder.Append(NEWLINE);
 					for(int j = 0; j < depth - 1; j++)
 						builder.Append("\t"); //for a bit more readability
 				}
@@ -828,7 +829,7 @@ public class JSONObject {
 				if(list.Count > 0) {
 #if(PRETTY)
 					if(pretty)
-						builder.Append("\n"); //for a bit more readability
+						builder.Append(NEWLINE); //for a bit more readability
 #endif
 					for(int i = 0; i < list.Count; i++) {
 						if(list[i]) {
@@ -842,7 +843,7 @@ public class JSONObject {
 							builder.Append(",");
 #if(PRETTY)
 							if(pretty)
-								builder.Append("\n"); //for a bit more readability
+								builder.Append(NEWLINE); //for a bit more readability
 #endif
 						}
 					}
@@ -855,7 +856,7 @@ public class JSONObject {
 				}
 #if(PRETTY)
 				if(pretty && list.Count > 0) {
-					builder.Append("\n");
+					builder.Append(NEWLINE);
 					for(int j = 0; j < depth - 1; j++)
 						builder.Append("\t"); //for a bit more readability
 				}
