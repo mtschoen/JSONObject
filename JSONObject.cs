@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using System.Globalization;
 /*
 Copyright (c) 2015 Matt Schoen
 
@@ -352,9 +353,9 @@ public class JSONObject : IEnumerable {
 						default:
 							try {
 #if USEFLOAT
-								n = System.Convert.ToSingle(str);
+								n = System.Convert.ToSingle(str, CultureInfo.InvariantCulture);
 #else
-								n = System.Convert.ToDouble(str);				 
+								n = System.Convert.ToDouble(str, CultureInfo.InvariantCulture);		 
 #endif
 								if(!str.Contains(".")) {
 									i = System.Convert.ToInt64(str);
