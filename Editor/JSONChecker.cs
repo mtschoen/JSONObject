@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEditor;
 
 /*
-Copyright (c) 2015 Matt Schoen
+Copyright (c) 2010-2019 Matt Schoen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ public class JSONChecker : EditorWindow {
 			""SomeBool"": true,
 			""SomeNull"": null
 		},
-		
+
 		""SomeEmptyObject"": { },
 		""SomeEmptyArray"": [ ],
 		""EmbeddedObject"": ""{\""field\"":\""Value with \\\""escaped quotes\\\""\""}""

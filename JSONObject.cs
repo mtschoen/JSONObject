@@ -12,7 +12,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 /*
-Copyright (c) 2015 Matt Schoen
+Copyright (c) 2010-2019 Matt Schoen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -236,10 +236,10 @@ public class JSONObject {
 	/// Create a JSONObject by parsing string data
 	/// </summary>
 	/// <param name="val">The string to be parsed</param>
-	/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level, 
+	/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
 	/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
 	/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
-	/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully 
+	/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
 	/// parse "a string" into a string-type </param>
 	/// <returns></returns>
 	public static JSONObject Create(string val, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
@@ -355,7 +355,7 @@ public class JSONObject {
 #if USEFLOAT
 								n = System.Convert.ToSingle(str);
 #else
-								n = System.Convert.ToDouble(str);				 
+								n = System.Convert.ToDouble(str);
 #endif
 								if(!str.Contains(".")) {
 									i = System.Convert.ToInt64(str);
