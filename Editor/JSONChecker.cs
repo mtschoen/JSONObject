@@ -2,6 +2,9 @@
 
 using UnityEngine;
 using UnityEditor;
+#if UNITY_2017_1_OR_NEWER
+using UnityEngine.Networking;
+#endif
 
 /*
 Copyright (c) 2010-2019 Matt Schoen
@@ -67,13 +70,24 @@ public class JSONChecker : EditorWindow {
 		URL = EditorGUILayout.TextField("URL", URL);
 		if (GUILayout.Button("Get JSON")) {
 			Debug.Log(URL);
-			WWW test = new WWW(URL);
-			while (!test.isDone) ;
+#if UNITY_2017_1_OR_NEWER
+			var test = new UnityWebRequest(URL);
+			test.SendWebRequest();
+			while (!test.isDone && !test.isNetworkError) ;
+#else
+			var test = new WWW(URL);
+ 			while (!test.isDone) ;
+#endif
 			if (!string.IsNullOrEmpty(test.error)) {
 				Debug.Log(test.error);
 			} else {
-				Debug.Log(test.text);
-				j = new JSONObject(test.text);
+#if UNITY_2017_1_OR_NEWER
+				var text = test.downloadHandler.text;
+#else
+				var text = test.text;
+#endif
+				Debug.Log(text);
+				j = new JSONObject(text);
 				Debug.Log(j.ToString(true));
 			}
 		}
