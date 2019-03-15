@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /*
-Copyright (c) 2015 Matt Schoen
+Copyright (c) 2010-2019 Matt Schoen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -208,52 +208,4 @@ public static partial class JSONTemplates {
 		}
 		return r;
 	}
-	
-	public static AnimationCurve ToAnimationCurve(JSONObject obj){
-		AnimationCurve a = new AnimationCurve();
-		if(obj.HasField("keys")){
-			JSONObject keys = obj.GetField("keys");
-			for(int i =0; i < keys.list.Count;i++){
-				a.AddKey(ToKeyframe(keys[i]));
-			}
-		}
-		if(obj.HasField("preWrapMode"))
-			a.preWrapMode = (WrapMode)((int)obj.GetField("preWrapMode").n);
-		if(obj.HasField("postWrapMode"))
-			a.postWrapMode = (WrapMode)((int)obj.GetField("postWrapMode").n);
-		return a;
-	}
-	
-	public static JSONObject FromAnimationCurve(AnimationCurve a){
-		JSONObject result = JSONObject.obj;
-		result.AddField("preWrapMode", a.preWrapMode.ToString()); 
-		result.AddField("postWrapMode", a.postWrapMode.ToString()); 
-		if(a.keys.Length > 0){
-			JSONObject keysJSON = JSONObject.Create();
-			for(int i =0; i < a.keys.Length;i++){
-				keysJSON.Add(FromKeyframe(a.keys[i]));
-			}
-			result.AddField("keys", keysJSON);
-		}
-		return result;
-	}
-	
-	public static Keyframe ToKeyframe(JSONObject obj){
-		Keyframe k = new Keyframe(obj.HasField("time")? obj.GetField("time").n : 0, obj.HasField("value")? obj.GetField("value").n : 0);
-		if(obj.HasField("inTangent")) k.inTangent = obj.GetField("inTangent").n;
-		if(obj.HasField("outTangent")) k.outTangent = obj.GetField("outTangent").n;
-		if(obj.HasField("tangentMode")) k.tangentMode = (int)obj.GetField("tangentMode").n;
-		
-		return k;
-	}
-	public static JSONObject FromKeyframe(Keyframe k){
-		JSONObject result = JSONObject.obj;
-		if(k.inTangent != 0)	result.AddField("inTangent", k.inTangent);
-		if(k.outTangent != 0)	result.AddField("outTangent", k.outTangent);
-		if(k.tangentMode != 0)	result.AddField("tangentMode", k.tangentMode);
-		if(k.time != 0)	result.AddField("time", k.time);
-		if(k.value != 0)	result.AddField("value", k.value);
-		return result;
-	}
-	
 }

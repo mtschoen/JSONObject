@@ -13,7 +13,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Globalization;
 /*
-Copyright (c) 2015 Matt Schoen
+Copyright (c) 2010-2019 Matt Schoen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@ public class JSONObject : IEnumerable {
 	const string INFINITY = "\"INFINITY\"";
 	const string NEGINFINITY = "\"NEGINFINITY\"";
 	const string NaN = "\"NaN\"";
+	const string NEWLINE = "\r\n";
 	public static readonly char[] WHITESPACE = { ' ', '\r', '\n', '\t', '\uFEFF', '\u0009' };
 	public enum Type { NULL, STRING, NUMBER, OBJECT, ARRAY, BOOL, BAKED }
 	public bool isContainer { get { return (type == Type.ARRAY || type == Type.OBJECT); } }
@@ -236,10 +237,10 @@ public class JSONObject : IEnumerable {
 	/// Create a JSONObject by parsing string data
 	/// </summary>
 	/// <param name="val">The string to be parsed</param>
-	/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level, 
+	/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
 	/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
 	/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
-	/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully 
+	/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
 	/// parse "a string" into a string-type </param>
 	/// <returns></returns>
 	public static JSONObject Create(string val, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
@@ -802,7 +803,7 @@ public class JSONObject : IEnumerable {
 				if(list.Count > 0) {
 #if(PRETTY)		//for a bit more readability, comment the define above to disable system-wide
 					if(pretty)
-						builder.Append("\n");
+						builder.Append(NEWLINE);
 #endif
 					for(int i = 0; i < list.Count; i++) {
 						string key = keys[i];
@@ -819,7 +820,7 @@ public class JSONObject : IEnumerable {
 							builder.Append(",");
 #if(PRETTY)
 							if(pretty)
-								builder.Append("\n");
+								builder.Append(NEWLINE);
 #endif
 						}
 					}
@@ -832,7 +833,7 @@ public class JSONObject : IEnumerable {
 				}
 #if(PRETTY)
 				if(pretty && list.Count > 0) {
-					builder.Append("\n");
+					builder.Append(NEWLINE);
 					for(int j = 0; j < depth - 1; j++)
 						builder.Append("\t"); //for a bit more readability
 				}
@@ -844,7 +845,7 @@ public class JSONObject : IEnumerable {
 				if(list.Count > 0) {
 #if(PRETTY)
 					if(pretty)
-						builder.Append("\n"); //for a bit more readability
+						builder.Append(NEWLINE); //for a bit more readability
 #endif
 					for(int i = 0; i < list.Count; i++) {
 						if(list[i]) {
@@ -858,7 +859,7 @@ public class JSONObject : IEnumerable {
 							builder.Append(",");
 #if(PRETTY)
 							if(pretty)
-								builder.Append("\n"); //for a bit more readability
+								builder.Append(NEWLINE); //for a bit more readability
 #endif
 						}
 					}
@@ -871,7 +872,7 @@ public class JSONObject : IEnumerable {
 				}
 #if(PRETTY)
 				if(pretty && list.Count > 0) {
-					builder.Append("\n");
+					builder.Append(NEWLINE);
 					for(int j = 0; j < depth - 1; j++)
 						builder.Append("\t"); //for a bit more readability
 				}
