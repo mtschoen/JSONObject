@@ -359,7 +359,7 @@ public class JSONObject : IEnumerable {
 								n = System.Convert.ToDouble(str, CultureInfo.InvariantCulture);		 
 #endif
 								if(!str.Contains(".")) {
-									i = System.Convert.ToInt64(str);
+									i = System.Convert.ToInt64(str, CultureInfo.InvariantCulture);
 									useInt = true;
 								}
 								type = Type.NUMBER;
@@ -488,7 +488,7 @@ public class JSONObject : IEnumerable {
 					keys = new List<string>();
 				if(type == Type.ARRAY) {
 					for(int i = 0; i < list.Count; i++)
-						keys.Add(i + "");
+						keys.Add(i.ToString(CultureInfo.InvariantCulture));
 				} else
 					if(list == null)
 						list = new List<JSONObject>();
@@ -777,7 +777,7 @@ public class JSONObject : IEnumerable {
 				break;
 			case Type.NUMBER:
 				if(useInt) {
-					builder.Append(i.ToString());
+					builder.Append(i.ToString(CultureInfo.InvariantCulture));
 				} else {
 #if USEFLOAT
 					if(float.IsInfinity(n))
@@ -795,7 +795,7 @@ public class JSONObject : IEnumerable {
 					builder.Append(NaN);
 #endif
 					else
-						builder.Append(n.ToString());
+						builder.Append(n.ToString(CultureInfo.InvariantCulture));
 				}
 				break;
 			case Type.OBJECT:
@@ -918,7 +918,7 @@ public class JSONObject : IEnumerable {
 				break;
 			case Type.NUMBER:
 				if(useInt) {
-					builder.Append(i.ToString());
+					builder.Append(i.ToString(CultureInfo.InvariantCulture));
 				} else {
 #if USEFLOAT
 					if(float.IsInfinity(n))
@@ -936,7 +936,7 @@ public class JSONObject : IEnumerable {
 					builder.Append(NaN);
 #endif
 					else
-						builder.Append(n.ToString());
+						builder.Append(n.ToString(CultureInfo.InvariantCulture));
 				}
 				break;
 			case Type.OBJECT:
@@ -1035,7 +1035,7 @@ public class JSONObject : IEnumerable {
 	public static implicit operator WWWForm(JSONObject obj) {
 		WWWForm form = new WWWForm();
 		for(int i = 0; i < obj.list.Count; i++) {
-			string key = i + "";
+			string key = i.ToString(CultureInfo.InvariantCulture);
 			if(obj.type == Type.OBJECT)
 				key = obj.keys[i];
 			string val = obj.list[i].ToString();
@@ -1077,8 +1077,8 @@ public class JSONObject : IEnumerable {
 				JSONObject val = list[i];
 				switch(val.type) {
 					case Type.STRING: result.Add(keys[i], val.str); break;
-					case Type.NUMBER: result.Add(keys[i], val.n + ""); break;
-					case Type.BOOL: result.Add(keys[i], val.b + ""); break;
+					case Type.NUMBER: result.Add(keys[i], val.n.ToString(CultureInfo.InvariantCulture)); break;
+					case Type.BOOL: result.Add(keys[i], val.b.ToString(CultureInfo.InvariantCulture)); break;
 					default:
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 						Debug.LogWarning
