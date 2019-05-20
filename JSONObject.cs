@@ -563,7 +563,7 @@ public class JSONObject : IEnumerable {
 		if(IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
-				field = (int)list[index].n;
+				field = (int)list[index].i;
 				return true;
 			}
 		}
@@ -578,7 +578,7 @@ public class JSONObject : IEnumerable {
 		if(IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
-				field = (long)list[index].n;
+				field = (long)list[index].i;
 				return true;
 			}
 		}
@@ -593,7 +593,7 @@ public class JSONObject : IEnumerable {
 		if(IsObject) {
 			int index = keys.IndexOf(name);
 			if(index >= 0) {
-				field = (uint)list[index].n;
+				field = (uint)list[index].i;
 				return true;
 			}
 		}
