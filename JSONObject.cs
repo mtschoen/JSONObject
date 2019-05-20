@@ -35,6 +35,116 @@ THE SOFTWARE.
 */
 
 public class JSONObject : IEnumerable {
+
+    static string ParseJsonString(string s)
+    {
+	string ret = "";
+	if (s == null) {
+	    return ret;
+	}
+	int idx = -1;
+	for (; idx + 1 < s.Length;)
+	{
+            ++idx;
+            char c = s[idx];
+            if (c != '\\')
+            {
+                ret += c;
+                continue;
+            }
+            if (idx + 1 >= s.Length)
+            {
+                throw new System.IndexOutOfRangeException();
+            }
+            ++idx;
+            char nxt = s[idx];
+            switch (nxt)
+            {
+                case '\"':
+                case '\\':
+                case '/':
+                    ret += nxt;
+                    break;
+                case 'b':
+                    ret += '\b';
+                    break;
+                case 'f':
+                    ret += '\f';
+                    break;
+                case 'n':
+                    ret += '\n';
+                    break;
+                case 'r':
+                    ret += '\r';
+                    break;
+                case 't':
+                    ret += '\t';
+                    break;
+                case 'u':
+		    ++idx;
+		    if (idx + 3 >= s.Length)
+		    {
+			throw new System.IndexOutOfRangeException();
+		    }
+		    int hexval = int.Parse(s.Substring(idx, 4), System.Globalization.NumberStyles.HexNumber);
+		    if (hexval > 0xffff)
+		    {
+			// C# strings can't contain unicode values over this
+			throw new System.NotImplementedException();
+		    }
+		    ret += (char)(hexval);
+		    idx += 3;
+		    break;
+                default:
+                    throw new System.NotImplementedException();
+            }
+        }
+        return ret;
+    }
+
+    // Escapes the given string @p s into @p builder, adding " marks around it
+    static void EscapeJsonString(StringBuilder builder, string s)
+    {
+	builder.Append("\"");
+	if (s == null)
+	{
+            builder.Append("\"");
+            return;
+	}
+	foreach (char c in s)
+	{
+	    switch (c)
+	    {
+		case '"':
+                    builder.Append("\\\"");
+		    break;
+		case '\\':
+                    builder.Append("\\\\");
+		    break;
+		case '\n':
+                    builder.Append("\\n");
+		    break;
+		case '\r':
+                    builder.Append("\\r");
+		    break;
+		case '\b':
+                    builder.Append("\\b");
+		    break;
+		case '\f':
+                    builder.Append("\\f");
+		    break;
+		case '\t':
+                    builder.Append("\\t");
+		    break;
+		default:
+                    builder.Append(c);
+		    break;
+	    }
+	}
+        builder.Append("\"");
+    }
+ 
+
 #if POOLING
 	const int MAX_POOL_SIZE = 10000;
 	public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
@@ -328,7 +438,8 @@ public class JSONObject : IEnumerable {
 #endif
 				} else if(str[0] == '"') {
 					type = Type.STRING;
-					this.str = str.Substring(1, str.Length - 2);
+					var s = str.Substring(1, str.Length - 2);
+					this.str = ParseJsonString(s);
 				} else {
 					int tokenTmp = 1;
 					/*
@@ -773,7 +884,7 @@ public class JSONObject : IEnumerable {
 				builder.Append(str);
 				break;
 			case Type.STRING:
-				builder.AppendFormat("\"{0}\"", str);
+				EscapeJsonString(builder, str);
 				break;
 			case Type.NUMBER:
 				if(useInt) {
@@ -914,7 +1025,7 @@ public class JSONObject : IEnumerable {
 				builder.Append(str);
 				break;
 			case Type.STRING:
-				builder.AppendFormat("\"{0}\"", str);
+				EscapeJsonString(builder, str);
 				break;
 			case Type.NUMBER:
 				if(useInt) {
