@@ -501,6 +501,7 @@ public class JSONObject : IEnumerable {
 	public void SetField(string name, string val) { SetField(name, CreateStringObject(val)); }
 	public void SetField(string name, bool val) { SetField(name, Create(val)); }
 	public void SetField(string name, float val) { SetField(name, Create(val)); }
+	public void SetField(string name, long val) { SetField(name, Create(val)); }
 	public void SetField(string name, int val) { SetField(name, Create(val)); }
 	public void SetField(string name, JSONObject obj) {
 		if(HasField(name)) {
