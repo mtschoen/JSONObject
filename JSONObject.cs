@@ -444,6 +444,9 @@ public class JSONObject : IEnumerable {
 	public void Add(float val) {
 		Add(Create(val));
 	}
+	public void Add(long val) {
+		Add(Create(val));
+	}
 	public void Add(int val) {
 		Add(Create(val));
 	}
