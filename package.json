@@ -1,0 +1,18 @@
+{
+  "name": "com.mtschoen.jsonobject",
+  "version": "1.4.1",
+  "displayName": "JSONObject",
+  "description": "I came across the need to send structured data to and from a server on one of my projects, and figured it would be worth my while to use JSON. When I looked into the issue, I tried a few of the C# implementations listed on http://json.org, but found them to be too complicated to work with and expand upon. So, I've written a very simple JSONObject class, which can be generically used to encode/decode data into a simple container. This page assumes that you know what JSON is, and how it works. It's rather simple, just go to json.org for a visual description of the encoding format.",
+  "unity": "2019.3",
+  "unityRelease": "5f1",
+ "keywords": [
+    "json",
+    "encode",
+    "decode"
+  ],
+  "author": {
+    "name": "Matt Schoen",
+    "email": "schoen@defectivestudios.com",
+    "url": "https://github.com/mtschoen/JSONObject"
+  }
+}
