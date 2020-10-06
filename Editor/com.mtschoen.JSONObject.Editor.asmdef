@@ -1,0 +1,15 @@
+{
+    "name": "com.mtschoen.JSONObject.Editor",
+    "references": [
+        "GUID:da6098fff058e184fbc994e6dd369c82"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
