@@ -1,17 +1,5 @@
-//#define PERFTEST        //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
-
-using UnityEngine;
-using UnityEditor;
-#if UNITY_2017_1_OR_NEWER
-using UnityEngine.Networking;
-#endif
-
-#if PERFTEST && UNITY_5_6_OR_NEWER
-using UnityEngine.Profiling;
-#endif
-
 /*
-Copyright (c) 2010-2019 Matt Schoen
+Copyright (c) 2010-2021 Matt Schoen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +19,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+
+//#define PERFTEST        //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
+
+using UnityEngine;
+using UnityEditor;
+#if UNITY_2017_1_OR_NEWER
+using UnityEngine.Networking;
+#endif
+
+#if PERFTEST && UNITY_5_6_OR_NEWER
+using UnityEngine.Profiling;
+#endif
 
 namespace Defective.JSON {
 	public class JSONChecker : EditorWindow {
