@@ -29,8 +29,8 @@ namespace Defective.JSON {
 		 * Vector2
 		 */
 		public static Vector2 ToVector2(JSONObject obj) {
-			float x = obj["x"] ? obj["x"].f : 0;
-			float y = obj["y"] ? obj["y"].f : 0;
+			var x = obj["x"] ? obj["x"].f : 0;
+			var y = obj["y"] ? obj["y"].f : 0;
 			return new Vector2(x, y);
 		}
 
@@ -53,9 +53,9 @@ namespace Defective.JSON {
 		}
 
 		public static Vector3 ToVector3(JSONObject obj) {
-			float x = obj["x"] ? obj["x"].f : 0;
-			float y = obj["y"] ? obj["y"].f : 0;
-			float z = obj["z"] ? obj["z"].f : 0;
+			var x = obj["x"] ? obj["x"].f : 0;
+			var y = obj["y"] ? obj["y"].f : 0;
+			var z = obj["z"] ? obj["z"].f : 0;
 			return new Vector3(x, y, z);
 		}
 
@@ -72,10 +72,10 @@ namespace Defective.JSON {
 		}
 
 		public static Vector4 ToVector4(JSONObject obj) {
-			float x = obj["x"] ? obj["x"].f : 0;
-			float y = obj["y"] ? obj["y"].f : 0;
-			float z = obj["z"] ? obj["z"].f : 0;
-			float w = obj["w"] ? obj["w"].f : 0;
+			var x = obj["x"] ? obj["x"].f : 0;
+			var y = obj["y"] ? obj["y"].f : 0;
+			var z = obj["z"] ? obj["z"].f : 0;
+			var w = obj["w"] ? obj["w"].f : 0;
 			return new Vector4(x, y, z, w);
 		}
 
@@ -137,10 +137,10 @@ namespace Defective.JSON {
 		}
 
 		public static Quaternion ToQuaternion(JSONObject obj) {
-			float x = obj["x"] ? obj["x"].f : 0;
-			float y = obj["y"] ? obj["y"].f : 0;
-			float z = obj["z"] ? obj["z"].f : 0;
-			float w = obj["w"] ? obj["w"].f : 0;
+			var x = obj["x"] ? obj["x"].f : 0;
+			var y = obj["y"] ? obj["y"].f : 0;
+			var z = obj["z"] ? obj["z"].f : 0;
+			var w = obj["w"] ? obj["w"].f : 0;
 			return new Quaternion(x, y, z, w);
 		}
 
@@ -158,7 +158,7 @@ namespace Defective.JSON {
 
 		public static Color ToColor(JSONObject obj) {
 			Color c = new Color();
-			for (int i = 0; i < obj.Count; i++) {
+			for (var i = 0; i < obj.Count; i++) {
 				switch (obj.keys[i]) {
 					case "r":
 						c.r = obj[i].f;
@@ -203,7 +203,7 @@ namespace Defective.JSON {
 
 		public static Rect ToRect(JSONObject obj) {
 			Rect r = new Rect();
-			for (int i = 0; i < obj.Count; i++) {
+			for (var i = 0; i < obj.Count; i++) {
 				switch (obj.keys[i]) {
 					case "x":
 						r.x = obj[i].f;
@@ -234,7 +234,7 @@ namespace Defective.JSON {
 
 		public static RectOffset ToRectOffset(JSONObject obj) {
 			RectOffset r = new RectOffset();
-			for (int i = 0; i < obj.Count; i++) {
+			for (var i = 0; i < obj.Count; i++) {
 				switch (obj.keys[i]) {
 					case "bottom":
 						r.bottom = (int) obj[i].n;

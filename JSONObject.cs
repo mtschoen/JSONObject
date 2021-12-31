@@ -38,8 +38,8 @@ using System.Globalization;
 namespace Defective.JSON {
 	public class JSONObject : IEnumerable {
 #if POOLING
-	const int MAX_POOL_SIZE = 10000;
-	public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
+		const int MAX_POOL_SIZE = 10000;
+		public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
 #endif
 
 		const int MAX_DEPTH = 100;
@@ -324,68 +324,68 @@ namespace Defective.JSON {
 			Parse(str, maxDepth, storeExcessLevels, strict);
 		}
 
-		void Parse(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
-			if (!string.IsNullOrEmpty(str)) {
-				str = str.Trim(WHITESPACE);
+		void Parse(string inputString, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
+			if (!string.IsNullOrEmpty(inputString)) {
+				inputString = inputString.Trim(WHITESPACE);
 				if (strict) {
-					if (str[0] != '[' && str[0] != '{') {
+					if (inputString[0] != '[' && inputString[0] != '{') {
 						type = Type.NULL;
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 						Debug.LogWarning
 #else
-					Debug.WriteLine
+						Debug.WriteLine
 #endif
 							("Improper (strict) JSON formatting.  First character must be [ or {");
 						return;
 					}
 				}
 
-				if (str.Length > 0) {
+				if (inputString.Length > 0) {
 #if UNITY_WP8 || UNITY_WSA
-				if (str == "true") {
-					type = Type.BOOL;
-					b = true;
-				} else if (str == "false") {
-					type = Type.BOOL;
-					b = false;
-				} else if (str == "null") {
-					type = Type.NULL;
-#else
-					if (string.Compare(str, "true", true) == 0) {
+					if (inputString == "true") {
 						type = Type.BOOL;
 						b = true;
-					} else if (string.Compare(str, "false", true) == 0) {
+					} else if (inputString == "false") {
 						type = Type.BOOL;
 						b = false;
-					} else if (string.Compare(str, "null", true) == 0) {
+					} else if (inputString == "null") {
+						type = Type.NULL;
+#else
+					if (string.Compare(inputString, "true", true, CultureInfo.InvariantCulture) == 0) {
+						type = Type.BOOL;
+						b = true;
+					} else if (string.Compare(inputString, "false", true, CultureInfo.InvariantCulture) == 0) {
+						type = Type.BOOL;
+						b = false;
+					} else if (string.Compare(inputString, "null", true, CultureInfo.InvariantCulture) == 0) {
 						type = Type.NULL;
 #endif
 #if USEFLOAT
-					} else if (str == INFINITY) {
+					} else if (inputString == INFINITY) {
 						type = Type.NUMBER;
 						n = float.PositiveInfinity;
-					} else if (str == NEGINFINITY) {
+					} else if (inputString == NEGINFINITY) {
 						type = Type.NUMBER;
 						n = float.NegativeInfinity;
-					} else if (str == NaN) {
+					} else if (inputString == NaN) {
 						type = Type.NUMBER;
 						n = float.NaN;
 #else
-				} else if(str == INFINITY) {
-					type = Type.NUMBER;
-					n = double.PositiveInfinity;
-				} else if(str == NEGINFINITY) {
-					type = Type.NUMBER;
-					n = double.NegativeInfinity;
-				} else if(str == NaN) {
-					type = Type.NUMBER;
-					n = double.NaN;
+					} else if(inputString == INFINITY) {
+						type = Type.NUMBER;
+						n = double.PositiveInfinity;
+					} else if(inputString == NEGINFINITY) {
+						type = Type.NUMBER;
+						n = double.NegativeInfinity;
+					} else if(inputString == NaN) {
+						type = Type.NUMBER;
+						n = double.NaN;
 #endif
-					} else if (str[0] == '"') {
+					} else if (inputString[0] == '"') {
 						type = Type.STRING;
-						this.str = str.Substring(1, str.Length - 2);
+						str = UnEscapeString(inputString.Substring(1, inputString.Length - 2));
 					} else {
-						int tokenTmp = 1;
+						var tokenTmp = 1;
 						/*
 						 * Checking for the following formatting (www.json.org)
 						 * object - {"field1":value,"field2":value}
@@ -395,8 +395,8 @@ namespace Defective.JSON {
 						 *		 - bool		- true -or- false
 						 *		 - null		- null
 						 */
-						int offset = 0;
-						switch (str[offset]) {
+						var offset = 0;
+						switch (inputString[offset]) {
 							case '{':
 								type = Type.OBJECT;
 								keys = new List<string>();
@@ -409,12 +409,12 @@ namespace Defective.JSON {
 							default:
 								try {
 #if USEFLOAT
-									n = System.Convert.ToSingle(str, CultureInfo.InvariantCulture);
+									n = System.Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
 #else
-								n = System.Convert.ToDouble(str, CultureInfo.InvariantCulture);
+									n = System.Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
 #endif
-									if (!str.Contains(".")) {
-										i = System.Convert.ToInt64(str, CultureInfo.InvariantCulture);
+									if (!inputString.Contains(".")) {
+										i = System.Convert.ToInt64(inputString, CultureInfo.InvariantCulture);
 										useInt = true;
 									}
 
@@ -424,30 +424,31 @@ namespace Defective.JSON {
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 									Debug.LogWarning
 #else
-								Debug.WriteLine
+									Debug.WriteLine
 #endif
-										("improper JSON formatting:" + str);
+										("improper JSON formatting:" + inputString);
 								}
 
 								return;
 						}
 
-						string propName = "";
-						bool openQuote = false;
-						bool inProp = false;
-						int depth = 0;
-						while (++offset < str.Length) {
-							if (System.Array.IndexOf(WHITESPACE, str[offset]) > -1)
+						var propName = "";
+						var openQuote = false;
+						var inProp = false;
+						var depth = 0;
+						while (++offset < inputString.Length) {
+							if (System.Array.IndexOf(WHITESPACE, inputString[offset]) > -1)
 								continue;
-							if (str[offset] == '\\') {
+
+							if (inputString[offset] == '\\') {
 								offset += 1;
 								continue;
 							}
 
-							if (str[offset] == '"') {
+							if (inputString[offset] == '"') {
 								if (openQuote) {
 									if (!inProp && depth == 0 && type == Type.OBJECT)
-										propName = str.Substring(tokenTmp + 1, offset - tokenTmp - 1);
+										propName = inputString.Substring(tokenTmp + 1, offset - tokenTmp - 1);
 									openQuote = false;
 								} else {
 									if (depth == 0 && type == Type.OBJECT)
@@ -458,23 +459,24 @@ namespace Defective.JSON {
 
 							if (openQuote)
 								continue;
+
 							if (type == Type.OBJECT && depth == 0) {
-								if (str[offset] == ':') {
+								if (inputString[offset] == ':') {
 									tokenTmp = offset + 1;
 									inProp = true;
 								}
 							}
 
-							if (str[offset] == '[' || str[offset] == '{') {
+							if (inputString[offset] == '[' || inputString[offset] == '{') {
 								depth++;
-							} else if (str[offset] == ']' || str[offset] == '}') {
+							} else if (inputString[offset] == ']' || inputString[offset] == '}') {
 								depth--;
 							}
 
 							//if  (encounter a ',' at top level)  || a closing ]/}
-							if ((str[offset] == ',' && depth == 0) || depth < 0) {
+							if ((inputString[offset] == ',' && depth == 0) || depth < 0) {
 								inProp = false;
-								string inner = str.Substring(tokenTmp, offset - tokenTmp).Trim(WHITESPACE);
+								var inner = inputString.Substring(tokenTmp, offset - tokenTmp).Trim(WHITESPACE);
 								if (inner.Length > 0) {
 									if (type == Type.OBJECT)
 										keys.Add(propName);
@@ -588,7 +590,7 @@ namespace Defective.JSON {
 					if (keys == null)
 						keys = new List<string>();
 					if (type == Type.ARRAY) {
-						for (int i = 0; i < list.Count; i++)
+						for (var i = 0; i < list.Count; i++)
 							keys.Add(i.ToString(CultureInfo.InvariantCulture));
 					} else if (list == null)
 						list = new List<JSONObject>();
@@ -648,7 +650,7 @@ namespace Defective.JSON {
 
 		public bool GetField(ref bool field, string name, FieldNotFound fail = null) {
 			if (type == Type.OBJECT) {
-				int index = keys.IndexOf(name);
+				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					field = list[index].b;
 					return true;
@@ -661,7 +663,7 @@ namespace Defective.JSON {
 #if USEFLOAT
 		public bool GetField(out float field, string name, float fallback) {
 #else
-	public bool GetField(out double field, string name, double fallback) {
+		public bool GetField(out double field, string name, double fallback) {
 #endif
 			field = fallback;
 			return GetField(ref field, name);
@@ -669,10 +671,10 @@ namespace Defective.JSON {
 #if USEFLOAT
 		public bool GetField(ref float field, string name, FieldNotFound fail = null) {
 #else
-	public bool GetField(ref double field, string name, FieldNotFound fail = null) {
+		public bool GetField(ref double field, string name, FieldNotFound fail = null) {
 #endif
 			if (type == Type.OBJECT) {
-				int index = keys.IndexOf(name);
+				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					field = list[index].n;
 					return true;
@@ -690,7 +692,7 @@ namespace Defective.JSON {
 
 		public bool GetField(ref int field, string name, FieldNotFound fail = null) {
 			if (IsObject) {
-				int index = keys.IndexOf(name);
+				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					field = (int) list[index].i;
 					return true;
@@ -708,7 +710,7 @@ namespace Defective.JSON {
 
 		public bool GetField(ref long field, string name, FieldNotFound fail = null) {
 			if (IsObject) {
-				int index = keys.IndexOf(name);
+				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					field = (long) list[index].i;
 					return true;
@@ -726,7 +728,7 @@ namespace Defective.JSON {
 
 		public bool GetField(ref uint field, string name, FieldNotFound fail = null) {
 			if (IsObject) {
-				int index = keys.IndexOf(name);
+				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					field = (uint) list[index].i;
 					return true;
@@ -744,7 +746,7 @@ namespace Defective.JSON {
 
 		public bool GetField(ref string field, string name, FieldNotFound fail = null) {
 			if (IsObject) {
-				int index = keys.IndexOf(name);
+				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					field = list[index].str;
 					return true;
@@ -757,7 +759,7 @@ namespace Defective.JSON {
 
 		public void GetField(string name, GetFieldResponse response, FieldNotFound fail = null) {
 			if (response != null && IsObject) {
-				int index = keys.IndexOf(name);
+				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					response.Invoke(list[index]);
 					return;
@@ -769,7 +771,7 @@ namespace Defective.JSON {
 
 		public JSONObject GetField(string name) {
 			if (IsObject)
-				for (int i = 0; i < keys.Count; i++)
+				for (var i = 0; i < keys.Count; i++)
 					if (keys[i] == name)
 						return list[i];
 			return null;
@@ -778,7 +780,7 @@ namespace Defective.JSON {
 		public bool HasFields(string[] names) {
 			if (!IsObject)
 				return false;
-			for (int i = 0; i < names.Length; i++)
+			for (var i = 0; i < names.Length; i++)
 				if (!keys.Contains(names[i]))
 					return false;
 			return true;
@@ -787,7 +789,7 @@ namespace Defective.JSON {
 		public bool HasField(string name) {
 			if (!IsObject)
 				return false;
-			for (int i = 0; i < keys.Count; i++)
+			for (var i = 0; i < keys.Count; i++)
 				if (keys[i] == name)
 					return true;
 			return false;
@@ -828,8 +830,8 @@ namespace Defective.JSON {
 			if (left.type == Type.NULL)
 				left.Absorb(right);
 			else if (left.type == Type.OBJECT && right.type == Type.OBJECT) {
-				for (int i = 0; i < right.list.Count; i++) {
-					string key = right.keys[i];
+				for (var i = 0; i < right.list.Count; i++) {
+					var key = right.keys[i];
 					if (right[i].isContainer) {
 						if (left.HasField(key))
 							MergeRecur(left[key], right[i]);
@@ -853,7 +855,7 @@ namespace Defective.JSON {
 					return;
 				}
 
-				for (int i = 0; i < right.list.Count; i++) {
+				for (var i = 0; i < right.list.Count; i++) {
 					if (left[i].type == right[i].type) {
 						//Only overwrite with the same type
 						if (left[i].isContainer)
@@ -904,8 +906,19 @@ namespace Defective.JSON {
 			return escaped;
 		}
 
+		static string UnEscapeString(string s) {
+			var escaped = s.Replace("\\\"", "\"");
+			escaped = escaped.Replace("\\\b", "\b");
+			escaped = escaped.Replace("\\\f", "\f");
+			escaped = escaped.Replace("\\\n", "\\\n");
+			escaped = escaped.Replace("\\\r", "\\\r");
+			escaped = escaped.Replace("\\\t", "\\\t");
+			escaped = escaped.Replace("\\\\", "\\");
+			return escaped;
+		}
+
 		public IEnumerable<string> PrintAsync(bool pretty = false) {
-			StringBuilder builder = new StringBuilder();
+			var builder = new StringBuilder();
 			printWatch.Reset();
 			printWatch.Start();
 			foreach (IEnumerable e in StringifyAsync(0, builder, pretty)) {
@@ -978,18 +991,19 @@ namespace Defective.JSON {
 						if (pretty)
 							builder.Append(NEWLINE);
 #endif
-						for (int i = 0; i < list.Count; i++) {
-							string key = keys[i];
+						for (var i = 0; i < list.Count; i++) {
+							var key = keys[i];
 							JSONObject obj = list[i];
 							if (obj) {
 #if(PRETTY)
 								if (pretty)
-									for (int j = 0; j < depth; j++)
+									for (var j = 0; j < depth; j++)
 										builder.Append("\t"); //for a bit more readability
 #endif
 								builder.AppendFormat("\"{0}\":", key);
 								foreach (IEnumerable e in obj.StringifyAsync(depth, builder, pretty))
 									yield return e;
+
 								builder.Append(",");
 #if(PRETTY)
 								if (pretty)
@@ -1007,7 +1021,7 @@ namespace Defective.JSON {
 #if(PRETTY)
 					if (pretty && list.Count > 0) {
 						builder.Append(NEWLINE);
-						for (int j = 0; j < depth - 1; j++)
+						for (var j = 0; j < depth - 1; j++)
 							builder.Append("\t"); //for a bit more readability
 					}
 #endif
@@ -1020,11 +1034,11 @@ namespace Defective.JSON {
 						if (pretty)
 							builder.Append(NEWLINE); //for a bit more readability
 #endif
-						for (int i = 0; i < list.Count; i++) {
+						for (var i = 0; i < list.Count; i++) {
 							if (list[i]) {
 #if(PRETTY)
 								if (pretty)
-									for (int j = 0; j < depth; j++)
+									for (var j = 0; j < depth; j++)
 										builder.Append("\t"); //for a bit more readability
 #endif
 								foreach (IEnumerable e in list[i].StringifyAsync(depth, builder, pretty))
@@ -1046,7 +1060,7 @@ namespace Defective.JSON {
 #if(PRETTY)
 					if (pretty && list.Count > 0) {
 						builder.Append(NEWLINE);
-						for (int j = 0; j < depth - 1; j++)
+						for (var j = 0; j < depth - 1; j++)
 							builder.Append("\t"); //for a bit more readability
 					}
 #endif
@@ -1123,13 +1137,13 @@ namespace Defective.JSON {
 						if (pretty)
 							builder.Append("\n");
 #endif
-						for (int i = 0; i < list.Count; i++) {
-							string key = keys[i];
+						for (var i = 0; i < list.Count; i++) {
+							var key = keys[i];
 							JSONObject obj = list[i];
 							if (obj) {
 #if(PRETTY)
 								if (pretty)
-									for (int j = 0; j < depth; j++)
+									for (var j = 0; j < depth; j++)
 										builder.Append("\t"); //for a bit more readability
 #endif
 								builder.AppendFormat("\"{0}\":", key);
@@ -1151,7 +1165,7 @@ namespace Defective.JSON {
 #if(PRETTY)
 					if (pretty && list.Count > 0) {
 						builder.Append("\n");
-						for (int j = 0; j < depth - 1; j++)
+						for (var j = 0; j < depth - 1; j++)
 							builder.Append("\t"); //for a bit more readability
 					}
 #endif
@@ -1164,11 +1178,11 @@ namespace Defective.JSON {
 						if (pretty)
 							builder.Append("\n"); //for a bit more readability
 #endif
-						for (int i = 0; i < list.Count; i++) {
+						for (var i = 0; i < list.Count; i++) {
 							if (list[i]) {
 #if(PRETTY)
 								if (pretty)
-									for (int j = 0; j < depth; j++)
+									for (var j = 0; j < depth; j++)
 										builder.Append("\t"); //for a bit more readability
 #endif
 								list[i].Stringify(depth, builder, pretty);
@@ -1189,7 +1203,7 @@ namespace Defective.JSON {
 #if(PRETTY)
 					if (pretty && list.Count > 0) {
 						builder.Append("\n");
-						for (int j = 0; j < depth - 1; j++)
+						for (var j = 0; j < depth - 1; j++)
 							builder.Append("\t"); //for a bit more readability
 					}
 #endif
@@ -1213,11 +1227,11 @@ namespace Defective.JSON {
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 		public static implicit operator WWWForm(JSONObject obj) {
 			WWWForm form = new WWWForm();
-			for (int i = 0; i < obj.list.Count; i++) {
-				string key = i.ToString(CultureInfo.InvariantCulture);
+			for (var i = 0; i < obj.list.Count; i++) {
+				var key = i.ToString(CultureInfo.InvariantCulture);
 				if (obj.type == Type.OBJECT)
 					key = obj.keys[i];
-				string val = obj.list[i].ToString();
+				var val = obj.list[i].ToString();
 				if (obj.list[i].type == Type.STRING)
 					val = val.Replace("\"", "");
 				form.AddField(key, val);
@@ -1253,7 +1267,7 @@ namespace Defective.JSON {
 		public Dictionary<string, string> ToDictionary() {
 			if (type == Type.OBJECT) {
 				Dictionary<string, string> result = new Dictionary<string, string>();
-				for (int i = 0; i < list.Count; i++) {
+				for (var i = 0; i < list.Count; i++) {
 					JSONObject val = list[i];
 					switch (val.type) {
 						case Type.STRING:
@@ -1350,7 +1364,7 @@ namespace Defective.JSON {
 				if (_jobj.IsArray) {
 					return _jobj[position];
 				} else {
-					string key = _jobj.keys[position];
+					var key = _jobj.keys[position];
 					return _jobj[key];
 				}
 			}
