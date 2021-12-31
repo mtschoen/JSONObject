@@ -1,19 +1,5 @@
-#define PRETTY		//Comment out when you no longer need to read JSON to disable pretty Print system-wide
-//Using doubles will cause errors in VectorTemplates.cs; Unity speaks floats
-#define USEFLOAT	//Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
-//#define POOLING	//Currently using a build setting for this one (also it's experimental)
-
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
-using UnityEngine;
-using Debug = UnityEngine.Debug;
-#endif
-using System.Diagnostics;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Globalization;
 /*
-Copyright (c) 2010-2019 Matt Schoen
+Copyright (c) 2010-2021 Matt Schoen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +19,21 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
+
+#define PRETTY      //Comment out when you no longer need to read JSON to disable pretty Print system-wide
+//Using doubles will cause errors in VectorTemplates.cs; Unity speaks floats
+#define USEFLOAT    //Use floats for numbers instead of doubles	(enable if you're getting too many significant digits in string output)
+//#define POOLING	//Currently using a build setting for this one (also it's experimental)
+
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+using UnityEngine;
+using Debug = UnityEngine.Debug;
+#endif
+using System.Diagnostics;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
+using System.Globalization;
 
 public class JSONObject : IEnumerable {
 #if POOLING
@@ -356,7 +357,7 @@ public class JSONObject : IEnumerable {
 #if USEFLOAT
 								n = System.Convert.ToSingle(str, CultureInfo.InvariantCulture);
 #else
-								n = System.Convert.ToDouble(str, CultureInfo.InvariantCulture);		 
+								n = System.Convert.ToDouble(str, CultureInfo.InvariantCulture);
 #endif
 								if(!str.Contains(".")) {
 									i = System.Convert.ToInt64(str, CultureInfo.InvariantCulture);
@@ -663,7 +664,7 @@ public class JSONObject : IEnumerable {
 		b = false;
 	}
 	/// <summary>
-	/// Copy a JSONObject. This could probably work better
+	/// Copy a JSONObject. This could be more efficient
 	/// </summary>
 	/// <returns></returns>
 	public JSONObject Copy() {
@@ -727,7 +728,7 @@ public class JSONObject : IEnumerable {
 	}
 	public IEnumerable BakeAsync() {
 		if(type != Type.BAKED) {
-			foreach(string s in PrintAsync()) {
+			foreach(var s in PrintAsync()) {
 				if(s == null)
 					yield return s;
 				else {
@@ -739,10 +740,22 @@ public class JSONObject : IEnumerable {
 	}
 #pragma warning disable 219
 	public string Print(bool pretty = false) {
-		StringBuilder builder = new StringBuilder();
+		var builder = new StringBuilder();
 		Stringify(0, builder, pretty);
 		return builder.ToString();
 	}
+
+	static string EscapeString(string s) {
+		var escaped = s.Replace("\\", "\\\\");
+		escaped = escaped.Replace("\b", "\\\b");
+		escaped = escaped.Replace("\f", "\\\f");
+		escaped = escaped.Replace("\n", "\\\n");
+		escaped = escaped.Replace("\r", "\\\r");
+		escaped = escaped.Replace("\t", "\\\t");
+		escaped = escaped.Replace("\"", "\\\"");
+		return escaped;
+	}
+
 	public IEnumerable<string> PrintAsync(bool pretty = false) {
 		StringBuilder builder = new StringBuilder();
 		printWatch.Reset();
@@ -777,7 +790,7 @@ public class JSONObject : IEnumerable {
 				builder.Append(str);
 				break;
 			case Type.STRING:
-				builder.AppendFormat("\"{0}\"", str);
+				builder.AppendFormat("\"{0}\"", EscapeString(str));
 				break;
 			case Type.NUMBER:
 				if(useInt) {
@@ -918,7 +931,7 @@ public class JSONObject : IEnumerable {
 				builder.Append(str);
 				break;
 			case Type.STRING:
-				builder.AppendFormat("\"{0}\"", str);
+				builder.AppendFormat("\"{0}\"", EscapeString(str));
 				break;
 			case Type.NUMBER:
 				if(useInt) {
