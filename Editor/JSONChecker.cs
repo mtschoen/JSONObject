@@ -72,8 +72,17 @@ public class JSONChecker : EditorWindow {
 			Debug.Log(URL);
 #if UNITY_2017_1_OR_NEWER
 			var test = new UnityWebRequest(URL);
+
+#if UNITY_2017_2_OR_NEWER
 			test.SendWebRequest();
-			while (!test.isDone && !test.isNetworkError) ;
+#else
+			test.Send();
+#endif
+#if UNITY_2020_1_OR_NEWER
+			while (!test.isDone && test.result != UnityWebRequest.Result.ConnectionError) { }
+#else
+			while (!test.isDone && !test.isNetworkError) {}
+#endif
 #else
 			var test = new WWW(URL);
  			while (!test.isDone) ;
