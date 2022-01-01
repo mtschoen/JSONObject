@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 
 #define PRETTY		//Comment out when you no longer need to read JSON to disable pretty Print system-wide
-//#define USEFLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
+//#define JSONOBJECT_USE_FLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
 //#define POOLING	//Currently using a build setting for this one (also it's experimental)
 
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
@@ -78,7 +78,7 @@ namespace Defective.JSON {
 		public List<JSONObject> list;
 		public List<string> keys;
 		public string str;
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 		public float n;
 		public float f {
 			get { return n; }
@@ -134,7 +134,7 @@ namespace Defective.JSON {
 
 		public JSONObject(double value) {
 			type = Type.NUMBER;
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 			n = (float)value;
 #else
 			n = value;
@@ -254,7 +254,7 @@ namespace Defective.JSON {
 		public static JSONObject Create(double value) {
 			var jsonObject = Create();
 			jsonObject.type = Type.NUMBER;
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 			jsonObject.n = (float)value;
 #else
 			jsonObject.n = value;
@@ -377,7 +377,7 @@ namespace Defective.JSON {
 					} else if (string.Compare(inputString, "null", true, CultureInfo.InvariantCulture) == 0) {
 						type = Type.NULL;
 #endif
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 					} else if (inputString == Infinity) {
 						type = Type.NUMBER;
 						n = float.PositiveInfinity;
@@ -425,7 +425,7 @@ namespace Defective.JSON {
 								break;
 							default:
 								try {
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 									n = System.Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
 #else
 									n = System.Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
@@ -448,7 +448,7 @@ namespace Defective.JSON {
 									type = Type.NUMBER;
 									n = inputString.StartsWith("-")
 										?
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 										float.NegativeInfinity
 										: float.PositiveInfinity;
 #else
@@ -729,7 +729,7 @@ namespace Defective.JSON {
 			if (type == Type.OBJECT) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 					field = list[index].n;
 #else
 					field = (float) list[index].n;
@@ -1025,7 +1025,7 @@ namespace Defective.JSON {
 					if (useInt) {
 						builder.Append(i.ToString(CultureInfo.InvariantCulture));
 					} else {
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 						if (float.IsNegativeInfinity(n))
 							builder.Append(NegativeInfinity);
 						else if (float.IsInfinity(n))
@@ -1171,7 +1171,7 @@ namespace Defective.JSON {
 					if (useInt) {
 						builder.Append(i.ToString(CultureInfo.InvariantCulture));
 					} else {
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 						if (float.IsNegativeInfinity(n))
 							builder.Append(NegativeInfinity);
 						else if (float.IsInfinity(n))

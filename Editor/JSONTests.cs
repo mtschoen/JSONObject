@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-//#define USEFLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
+//#define JSONOBJECT_USE_FLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
 
 #if UNITY_5_6_OR_NEWER && JSONOBJECT_TESTS
 using NUnit.Framework;
@@ -78,7 +78,7 @@ namespace Defective.JSON.Tests {
 		public void ParseDouble(double value) {
 			var jsonObject = new JSONObject(string.Format(TestJsonFormatFloat, value));
 
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 			var expected = (float) value;
 #else
 			var expected = value;
@@ -108,7 +108,7 @@ namespace Defective.JSON.Tests {
 			var jsonObject = new JSONObject();
 			jsonObject.AddField(TestFieldName, value);
 
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 			var expected = value;
 #else
 			var expected = (double) value;
@@ -130,7 +130,7 @@ namespace Defective.JSON.Tests {
 			var jsonObject = new JSONObject();
 			jsonObject.AddField(TestFieldName, value);
 
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 			var expected = (float) value;
 #else
 			var expected = value;
@@ -175,7 +175,7 @@ namespace Defective.JSON.Tests {
 			var jsonText = string.Format(TestJsonFormatFloat, value);
 			var jsonObject = new JSONObject(jsonText);
 
-#if USEFLOAT
+#if JSONOBJECT_USE_FLOAT
 			var expected = string.Format(TestJsonFormatFloat, (float) value);
 #else
 			var expected = jsonText;
