@@ -28,6 +28,7 @@ THE SOFTWARE.
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 #endif
+using System;
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
@@ -41,11 +42,11 @@ namespace Defective.JSON {
 		public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
 #endif
 
-		const int MaxDepth = 100;
 		const string Infinity = "Infinity";
 		const string NegativeInfinity = "-Infinity";
 		const string NaN = "NaN";
 		const string Newline = "\r\n";
+		const string Tab = "\t";
 
 		const float MaxFrameTime = 0.008f;
 		static readonly Stopwatch PrintWatch = new Stopwatch();
@@ -823,7 +824,8 @@ namespace Defective.JSON {
 				}
 			}
 
-			if (fail != null) fail.Invoke(name);
+			if (fail != null)
+				fail.Invoke(name);
 		}
 
 		public JSONObject GetField(string name) {
@@ -831,6 +833,7 @@ namespace Defective.JSON {
 				for (var index = 0; index < keys.Count; index++)
 					if (keys[index] == name)
 						return list[index];
+
 			return null;
 		}
 
@@ -912,7 +915,7 @@ namespace Defective.JSON {
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 					Debug.LogError
 #else
-				Debug.WriteLine
+					Debug.WriteLine
 #endif
 						("Cannot merge arrays when right object has more elements");
 					return;
@@ -950,7 +953,7 @@ namespace Defective.JSON {
 				type = Type.BAKED;
 			}
 		}
-#pragma warning disable 219
+
 		public string Print(bool pretty = false) {
 			var builder = new StringBuilder();
 			Stringify(0, builder, pretty);
@@ -990,24 +993,15 @@ namespace Defective.JSON {
 
 			yield return builder.ToString();
 		}
-#pragma warning restore 219
 
-#region STRINGIFY
-
+		/// <summary>
+		/// Convert the JSONObject into a string
+		/// </summary>
+		/// <param name="depth">How many containers deep this run has reached</param>
+		/// <param name="builder">The StringBuilder used to build the string</param>
+		/// <param name="pretty">Whether this string should be "pretty" and include whitespace for readability</param>
+		/// <returns>An enumerator for this function</returns>
 		IEnumerable StringifyAsync(int depth, StringBuilder builder, bool pretty = false) {
-			//Convert the JSONObject into a string
-			//Profiler.BeginSample("JSONprint");
-			if (depth++ > MaxDepth) {
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
-				Debug.Log
-#else
-				Debug.WriteLine
-#endif
-					("reached max depth!");
-
-				yield break;
-			}
-
 			if (PrintWatch.Elapsed.TotalSeconds > MaxFrameTime) {
 				PrintWatch.Reset();
 				yield return null;
@@ -1059,10 +1053,10 @@ namespace Defective.JSON {
 #if (PRETTY)
 								if (pretty)
 									for (var j = 0; j < depth; j++)
-										builder.Append("\t"); //for a bit more readability
+										builder.Append(Tab); //for a bit more readability
 #endif
 								builder.AppendFormat("\"{0}\":", key);
-								foreach (IEnumerable e in jsonObject.StringifyAsync(depth, builder, pretty))
+								foreach (IEnumerable e in jsonObject.StringifyAsync(depth + 1, builder, pretty))
 									yield return e;
 
 								builder.Append(",");
@@ -1083,7 +1077,7 @@ namespace Defective.JSON {
 					if (pretty && list.Count > 0) {
 						builder.Append(Newline);
 						for (var j = 0; j < depth - 1; j++)
-							builder.Append("\t"); //for a bit more readability
+							builder.Append(Tab); //for a bit more readability
 					}
 #endif
 					builder.Append("}");
@@ -1100,9 +1094,9 @@ namespace Defective.JSON {
 #if (PRETTY)
 								if (pretty)
 									for (var j = 0; j < depth; j++)
-										builder.Append("\t"); //for a bit more readability
+										builder.Append(Tab); //for a bit more readability
 #endif
-								foreach (IEnumerable e in list[index].StringifyAsync(depth, builder, pretty))
+								foreach (IEnumerable e in list[index].StringifyAsync(depth + 1, builder, pretty))
 									yield return e;
 								builder.Append(",");
 #if (PRETTY)
@@ -1122,7 +1116,7 @@ namespace Defective.JSON {
 					if (pretty && list.Count > 0) {
 						builder.Append(Newline);
 						for (var j = 0; j < depth - 1; j++)
-							builder.Append("\t"); //for a bit more readability
+							builder.Append(Tab); //for a bit more readability
 					}
 #endif
 					builder.Append("]");
@@ -1137,29 +1131,15 @@ namespace Defective.JSON {
 					builder.Append("null");
 					break;
 			}
-			//Profiler.EndSample();
 		}
 
-		//TODO: Refactor Stringify functions to share core logic
-		/*
-		 * I know, I know, this is really bad form.  It turns out that there is a
-		 * significant amount of garbage created when calling as a coroutine, so this
-		 * method is duplicated.  Hopefully there won't be too many future changes, but
-		 * I would still like a more elegant way to optionaly yield
-		 */
+		/// <summary>
+		/// Convert the JSONObject into a string
+		/// </summary>
+		/// <param name="depth">How many containers deep this run has reached</param>
+		/// <param name="builder">The StringBuilder used to build the string</param>
+		/// <param name="pretty">Whether this string should be "pretty" and include whitespace for readability</param>
 		void Stringify(int depth, StringBuilder builder, bool pretty = false) {
-			//Convert the JSONObject into a string
-			//Profiler.BeginSample("JSONprint");
-			if (depth++ > MaxDepth) {
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
-				Debug.Log
-#else
-			Debug.WriteLine
-#endif
-					("reached max depth!");
-				return;
-			}
-
 			switch (type) {
 				case Type.BAKED:
 					builder.Append(str);
@@ -1196,7 +1176,7 @@ namespace Defective.JSON {
 					if (list.Count > 0) {
 #if (PRETTY) //for a bit more readability, comment the define above to disable system-wide
 						if (pretty)
-							builder.Append("\n");
+							builder.Append(Newline);
 #endif
 						for (var index = 0; index < list.Count; index++) {
 							var key = keys[index];
@@ -1205,14 +1185,14 @@ namespace Defective.JSON {
 #if (PRETTY)
 								if (pretty)
 									for (var j = 0; j < depth; j++)
-										builder.Append("\t"); //for a bit more readability
+										builder.Append(Tab); //for a bit more readability
 #endif
 								builder.AppendFormat("\"{0}\":", key);
-								jsonObject.Stringify(depth, builder, pretty);
+								jsonObject.Stringify(depth + 1, builder, pretty);
 								builder.Append(",");
 #if (PRETTY)
 								if (pretty)
-									builder.Append("\n");
+									builder.Append(Newline);
 #endif
 							}
 						}
@@ -1225,9 +1205,9 @@ namespace Defective.JSON {
 					}
 #if (PRETTY)
 					if (pretty && list.Count > 0) {
-						builder.Append("\n");
+						builder.Append(Newline);
 						for (var j = 0; j < depth - 1; j++)
-							builder.Append("\t"); //for a bit more readability
+							builder.Append(Tab); //for a bit more readability
 					}
 #endif
 					builder.Append("}");
@@ -1237,7 +1217,7 @@ namespace Defective.JSON {
 					if (list.Count > 0) {
 #if (PRETTY)
 						if (pretty)
-							builder.Append("\n"); //for a bit more readability
+							builder.Append(Newline); //for a bit more readability
 #endif
 						foreach (var jsonObject in list)
 						{
@@ -1245,13 +1225,13 @@ namespace Defective.JSON {
 #if (PRETTY)
 								if (pretty)
 									for (var j = 0; j < depth; j++)
-										builder.Append("\t"); //for a bit more readability
+										builder.Append(Tab); //for a bit more readability
 #endif
-								jsonObject.Stringify(depth, builder, pretty);
+								jsonObject.Stringify(depth + 1, builder, pretty);
 								builder.Append(",");
 #if (PRETTY)
 								if (pretty)
-									builder.Append("\n"); //for a bit more readability
+									builder.Append(Newline); //for a bit more readability
 #endif
 							}
 						}
@@ -1264,9 +1244,9 @@ namespace Defective.JSON {
 					}
 #if (PRETTY)
 					if (pretty && list.Count > 0) {
-						builder.Append("\n");
+						builder.Append(Newline);
 						for (var j = 0; j < depth - 1; j++)
-							builder.Append("\t"); //for a bit more readability
+							builder.Append(Tab); //for a bit more readability
 					}
 #endif
 					builder.Append("]");
@@ -1281,14 +1261,11 @@ namespace Defective.JSON {
 					builder.Append("null");
 					break;
 			}
-			//Profiler.EndSample();
 		}
-
-#endregion
 
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 		public static implicit operator WWWForm(JSONObject jsonObject) {
-			WWWForm form = new WWWForm();
+			var form = new WWWForm();
 			for (var i = 0; i < jsonObject.list.Count; i++) {
 				var key = i.ToString(CultureInfo.InvariantCulture);
 				if (jsonObject.type == Type.OBJECT)
@@ -1345,7 +1322,7 @@ namespace Defective.JSON {
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 							Debug.LogWarning
 #else
-						Debug.WriteLine
+							Debug.WriteLine
 #endif
 								("Omitting object: " + keys[index] + " in dictionary conversion");
 							break;
@@ -1354,37 +1331,40 @@ namespace Defective.JSON {
 
 				return result;
 			}
+
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 			Debug.Log
 #else
-		Debug.WriteLine
+			Debug.WriteLine
 #endif
 				("Tried to turn non-Object JSONObject into a dictionary");
+
 			return null;
 		}
 
 		public static implicit operator bool(JSONObject o) {
 			return o != null;
 		}
-#if POOLING
-	static bool pool = true;
-	public static void ClearPool() {
-		pool = false;
-		releaseQueue.Clear();
-		pool = true;
-	}
 
-	~JSONObject() {
-		if(pool && releaseQueue.Count < MAX_POOL_SIZE) {
-			type = Type.NULL;
-			list = null;
-			keys = null;
-			str = "";
-			n = 0;
-			b = false;
-			releaseQueue.Enqueue(this);
+#if POOLING
+		static bool pool = true;
+		public static void ClearPool() {
+			pool = false;
+			releaseQueue.Clear();
+			pool = true;
 		}
-	}
+
+		~JSONObject() {
+			if(pool && releaseQueue.Count < MAX_POOL_SIZE) {
+				type = Type.NULL;
+				list = null;
+				keys = null;
+				str = "";
+				n = 0;
+				b = false;
+				releaseQueue.Enqueue(this);
+			}
+		}
 #endif
 
 		IEnumerator IEnumerable.GetEnumerator() {
@@ -1404,7 +1384,9 @@ namespace Defective.JSON {
 		int position = -1;
 
 		public JSONObjectEnumerator(JSONObject jsonObject) {
-			Debug.Assert(jsonObject.isContainer); //must be an array or object to iterate
+			if (!jsonObject.isContainer)
+				throw new InvalidOperationException("JSONObject must be an array or object to provide an iterator");
+
 			target = jsonObject;
 		}
 
@@ -1423,12 +1405,11 @@ namespace Defective.JSON {
 
 		public JSONObject Current {
 			get {
-				if (target.IsArray) {
+				if (target.IsArray)
 					return target[position];
-				} else {
-					var key = target.keys[position];
-					return target[key];
-				}
+
+				var key = target.keys[position];
+				return target[key];
 			}
 		}
 	}
