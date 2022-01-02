@@ -522,7 +522,6 @@ namespace Defective.JSON {
 					}
 				} else type = Type.NULL;
 			} else type = Type.NULL; //If the string is missing, this is a null
-			//Profiler.EndSample();
 		}
 
 #endregion
@@ -580,16 +579,16 @@ namespace Defective.JSON {
 		}
 
 		public void Add(JSONObject jsonObject) {
-			if (jsonObject) {
-				//Don't do anything if the object is null
-				if (type != Type.ARRAY) {
-					type = Type.ARRAY; //Congratulations, son, you're an ARRAY now
-					if (list == null)
-						list = new List<JSONObject>();
-				}
+			if (jsonObject == null)
+				return; //Don't do anything if the object is null
 
-				list.Add(jsonObject);
+			if (type != Type.ARRAY) {
+				type = Type.ARRAY; //Congratulations, son, you're an ARRAY now
+				if (list == null)
+					list = new List<JSONObject>();
 			}
+
+			list.Add(jsonObject);
 		}
 
 		public void AddField(string name, bool value) {
@@ -1013,122 +1012,63 @@ namespace Defective.JSON {
 					builder.Append(str);
 					break;
 				case Type.STRING:
-					builder.AppendFormat("\"{0}\"", EscapeString(str));
+					StringifyString(builder);
 					break;
 				case Type.NUMBER:
-					if (useInt) {
-						builder.Append(i.ToString(CultureInfo.InvariantCulture));
-					} else {
-#if JSONOBJECT_USE_FLOAT
-						if (float.IsNegativeInfinity(n))
-							builder.Append(NegativeInfinity);
-						else if (float.IsInfinity(n))
-							builder.Append(Infinity);
-						else if (float.IsNaN(n))
-							builder.Append(NaN);
-#else
-						if (double.IsNegativeInfinity(n))
-							builder.Append(NegativeInfinity);
-						else if (double.IsInfinity(n))
-							builder.Append(Infinity);
-						else if (double.IsNaN(n))
-							builder.Append(NaN);
-#endif
-						else
-							builder.Append(n.ToString("R", CultureInfo.InvariantCulture));
-					}
-
+					StringifyNumber(builder);
 					break;
 				case Type.OBJECT:
-					builder.Append("{");
-					if (list.Count > 0) {
-#if (PRETTY) //for a bit more readability, comment the define above to disable system-wide
-						if (pretty)
-							builder.Append(Newline);
-#endif
-						for (var index = 0; index < list.Count; index++) {
-							var key = keys[index];
-							var jsonObject = list[index];
-							if (jsonObject) {
-#if (PRETTY)
-								if (pretty)
-									for (var j = 0; j < depth; j++)
-										builder.Append(Tab); //for a bit more readability
-#endif
-								builder.AppendFormat("\"{0}\":", key);
-								foreach (IEnumerable e in jsonObject.StringifyAsync(depth + 1, builder, pretty))
-									yield return e;
+					var fieldCount = list.Count;
+					if (fieldCount <= 0) {
+						StringifyEmptyObject(builder);
+						break;
+					}
 
-								builder.Append(",");
-#if (PRETTY)
-								if (pretty)
-									builder.Append(Newline);
-#endif
-							}
-						}
-#if (PRETTY)
-						if (pretty)
-							builder.Length -= 2;
-						else
-#endif
-							builder.Length--;
+					depth++;
+
+					BeginStringifyObjectContainer(builder, pretty);
+					for (var index = 0; index < fieldCount; index++) {
+						var jsonObject = list[index];
+						if (jsonObject == null)
+							continue;
+
+						var key = keys[index];
+						BeginStringifyObjectField(builder, pretty, depth, key);
+						foreach (IEnumerable e in jsonObject.StringifyAsync(depth, builder, pretty))
+							yield return e;
+
+						EndStringifyObjectField(builder, pretty);
 					}
-#if (PRETTY)
-					if (pretty && list.Count > 0) {
-						builder.Append(Newline);
-						for (var j = 0; j < depth - 1; j++)
-							builder.Append(Tab); //for a bit more readability
-					}
-#endif
-					builder.Append("}");
+
+					EndStringifyObjectContainer(builder, pretty, depth);
 					break;
 				case Type.ARRAY:
-					builder.Append("[");
-					if (list.Count > 0) {
-#if (PRETTY)
-						if (pretty)
-							builder.Append(Newline); //for a bit more readability
-#endif
-						for (var index = 0; index < list.Count; index++) {
-							if (list[index]) {
-#if (PRETTY)
-								if (pretty)
-									for (var j = 0; j < depth; j++)
-										builder.Append(Tab); //for a bit more readability
-#endif
-								foreach (IEnumerable e in list[index].StringifyAsync(depth + 1, builder, pretty))
-									yield return e;
-								builder.Append(",");
-#if (PRETTY)
-								if (pretty)
-									builder.Append(Newline); //for a bit more readability
-#endif
-							}
-						}
-#if (PRETTY)
-						if (pretty)
-							builder.Length -= 2;
-						else
-#endif
-							builder.Length--;
+					var count = list.Count;
+					if (count <= 0) {
+						StringifyEmptyArray(builder);
+						break;
 					}
-#if (PRETTY)
-					if (pretty && list.Count > 0) {
-						builder.Append(Newline);
-						for (var j = 0; j < depth - 1; j++)
-							builder.Append(Tab); //for a bit more readability
+
+					BeginStringifyArrayContainer(builder, pretty);
+					for (var index = 0; index < count; index++) {
+						var jsonObject = list[index];
+						if (jsonObject == null)
+							continue;
+
+						BeginStringifyArrayElement(builder, pretty, depth);
+						foreach (IEnumerable e in list[index].StringifyAsync(depth, builder, pretty))
+							yield return e;
+
+						EndStringifyArrayElement(builder, pretty);
 					}
-#endif
-					builder.Append("]");
+
+					EndStringifyArrayContainer(builder, pretty, depth);
 					break;
 				case Type.BOOL:
-					if (b)
-						builder.Append("true");
-					else
-						builder.Append("false");
+					StringifyBool(builder);
 					break;
 				case Type.NULL:
-					builder.Append("null");
+					StringifyNull(builder);
 					break;
 			}
 		}
@@ -1140,127 +1080,198 @@ namespace Defective.JSON {
 		/// <param name="builder">The StringBuilder used to build the string</param>
 		/// <param name="pretty">Whether this string should be "pretty" and include whitespace for readability</param>
 		void Stringify(int depth, StringBuilder builder, bool pretty = false) {
+			depth++;
 			switch (type) {
 				case Type.BAKED:
 					builder.Append(str);
 					break;
 				case Type.STRING:
-					builder.AppendFormat("\"{0}\"", EscapeString(str));
+					StringifyString(builder);
 					break;
 				case Type.NUMBER:
-					if (useInt) {
-						builder.Append(i.ToString(CultureInfo.InvariantCulture));
-					} else {
-#if JSONOBJECT_USE_FLOAT
-						if (float.IsNegativeInfinity(n))
-							builder.Append(NegativeInfinity);
-						else if (float.IsInfinity(n))
-							builder.Append(Infinity);
-						else if (float.IsNaN(n))
-							builder.Append(NaN);
-#else
-						if (double.IsNegativeInfinity(n))
-							builder.Append(NegativeInfinity);
-						else if (double.IsInfinity(n))
-							builder.Append(Infinity);
-						else if (double.IsNaN(n))
-							builder.Append(NaN);
-#endif
-						else
-							builder.Append(n.ToString("R", CultureInfo.InvariantCulture));
-					}
-
+					StringifyNumber(builder);
 					break;
 				case Type.OBJECT:
-					builder.Append("{");
-					if (list.Count > 0) {
-#if (PRETTY) //for a bit more readability, comment the define above to disable system-wide
-						if (pretty)
-							builder.Append(Newline);
-#endif
-						for (var index = 0; index < list.Count; index++) {
-							var key = keys[index];
-							JSONObject jsonObject = list[index];
-							if (jsonObject) {
-#if (PRETTY)
-								if (pretty)
-									for (var j = 0; j < depth; j++)
-										builder.Append(Tab); //for a bit more readability
-#endif
-								builder.AppendFormat("\"{0}\":", key);
-								jsonObject.Stringify(depth + 1, builder, pretty);
-								builder.Append(",");
-#if (PRETTY)
-								if (pretty)
-									builder.Append(Newline);
-#endif
-							}
-						}
-#if (PRETTY)
-						if (pretty)
-							builder.Length -= 2;
-						else
-#endif
-							builder.Length--;
+					var count = list.Count;
+					if (count <= 0) {
+						StringifyEmptyObject(builder);
+						break;
 					}
-#if (PRETTY)
-					if (pretty && list.Count > 0) {
-						builder.Append(Newline);
-						for (var j = 0; j < depth - 1; j++)
-							builder.Append(Tab); //for a bit more readability
+
+					BeginStringifyObjectContainer(builder, pretty);
+					for (var index = 0; index < count; index++) {
+						var jsonObject = list[index];
+						if (jsonObject == null)
+							continue;
+
+						var key = keys[index];
+						BeginStringifyObjectField(builder, pretty, depth, key);
+						jsonObject.Stringify(depth, builder, pretty);
+						EndStringifyObjectField(builder, pretty);
 					}
-#endif
-					builder.Append("}");
+
+					EndStringifyObjectContainer(builder, pretty, depth);
 					break;
 				case Type.ARRAY:
-					builder.Append("[");
-					if (list.Count > 0) {
-#if (PRETTY)
-						if (pretty)
-							builder.Append(Newline); //for a bit more readability
-#endif
-						foreach (var jsonObject in list)
-						{
-							if (jsonObject) {
-#if (PRETTY)
-								if (pretty)
-									for (var j = 0; j < depth; j++)
-										builder.Append(Tab); //for a bit more readability
-#endif
-								jsonObject.Stringify(depth + 1, builder, pretty);
-								builder.Append(",");
-#if (PRETTY)
-								if (pretty)
-									builder.Append(Newline); //for a bit more readability
-#endif
-							}
-						}
-#if (PRETTY)
-						if (pretty)
-							builder.Length -= 2;
-						else
-#endif
-							builder.Length--;
+					if (list.Count <= 0) {
+						StringifyEmptyArray(builder);
+						break;
 					}
-#if (PRETTY)
-					if (pretty && list.Count > 0) {
-						builder.Append(Newline);
-						for (var j = 0; j < depth - 1; j++)
-							builder.Append(Tab); //for a bit more readability
+
+					BeginStringifyArrayContainer(builder, pretty);
+					foreach (var jsonObject in list) {
+						if (jsonObject == null)
+							continue;
+
+						BeginStringifyArrayElement(builder, pretty, depth);
+						jsonObject.Stringify(depth, builder, pretty);
+						EndStringifyArrayElement(builder, pretty);
 					}
-#endif
-					builder.Append("]");
+
+					EndStringifyArrayContainer(builder, pretty, depth);
 					break;
 				case Type.BOOL:
-					if (b)
-						builder.Append("true");
-					else
-						builder.Append("false");
+					StringifyBool(builder);
 					break;
 				case Type.NULL:
-					builder.Append("null");
+					StringifyNull(builder);
 					break;
 			}
+		}
+
+		void StringifyString(StringBuilder builder)
+		{
+			builder.AppendFormat("\"{0}\"", EscapeString(str));
+		}
+
+		void BeginStringifyObjectContainer(StringBuilder builder, bool pretty) {
+			builder.Append("{");
+
+#if PRETTY
+			if (pretty)
+				builder.Append(Newline);
+#endif
+		}
+
+		static void StringifyEmptyObject(StringBuilder builder) {
+			builder.Append("{}");
+		}
+
+		void BeginStringifyObjectField(StringBuilder builder, bool pretty, int depth, string key) {
+#if PRETTY
+			if (pretty)
+				for (var j = 0; j < depth; j++)
+					builder.Append(Tab); //for a bit more readability
+#endif
+
+			builder.AppendFormat("\"{0}\":", key);
+		}
+
+		void EndStringifyObjectField(StringBuilder builder, bool pretty) {
+			builder.Append(",");
+#if PRETTY
+			if (pretty)
+				builder.Append(Newline);
+#endif
+		}
+
+		void EndStringifyObjectContainer(StringBuilder builder, bool pretty, int depth) {
+#if PRETTY
+			if (pretty)
+				builder.Length -= 3;
+			else
+#endif
+				builder.Length--;
+
+#if PRETTY
+			if (pretty && list.Count > 0) {
+				builder.Append(Newline);
+				for (var j = 0; j < depth - 1; j++)
+					builder.Append(Tab);
+			}
+#endif
+
+			builder.Append("}");
+		}
+
+		static void StringifyEmptyArray(StringBuilder builder) {
+			builder.Append("[]");
+		}
+
+		void BeginStringifyArrayContainer(StringBuilder builder, bool pretty) {
+			builder.Append("[");
+#if PRETTY
+			if (pretty)
+				builder.Append(Newline);
+#endif
+
+		}
+
+		void BeginStringifyArrayElement(StringBuilder builder, bool pretty, int depth) {
+#if PRETTY
+			if (pretty)
+				for (var j = 0; j < depth; j++)
+					builder.Append(Tab); //for a bit more readability
+#endif
+		}
+
+		void EndStringifyArrayElement(StringBuilder builder, bool pretty) {
+			builder.Append(",");
+#if PRETTY
+			if (pretty)
+				builder.Append(Newline);
+#endif
+		}
+
+		void EndStringifyArrayContainer(StringBuilder builder, bool pretty, int depth) {
+#if PRETTY
+			if (pretty)
+				builder.Length -= 3;
+			else
+#endif
+				builder.Length--;
+
+#if PRETTY
+			if (pretty && list.Count > 0) {
+				builder.Append(Newline);
+				for (var j = 0; j < depth - 1; j++)
+					builder.Append(Tab);
+			}
+#endif
+
+			builder.Append("]");
+		}
+
+		void StringifyNumber(StringBuilder builder) {
+			if (useInt) {
+				builder.Append(i.ToString(CultureInfo.InvariantCulture));
+			} else {
+#if JSONOBJECT_USE_FLOAT
+				if (float.IsNegativeInfinity(n))
+					builder.Append(NegativeInfinity);
+				else if (float.IsInfinity(n))
+					builder.Append(Infinity);
+				else if (float.IsNaN(n))
+					builder.Append(NaN);
+#else
+				if (double.IsNegativeInfinity(n))
+					builder.Append(NegativeInfinity);
+				else if (double.IsInfinity(n))
+					builder.Append(Infinity);
+				else if (double.IsNaN(n))
+					builder.Append(NaN);
+#endif
+				else
+					builder.Append(n.ToString("R", CultureInfo.InvariantCulture));
+			}
+		}
+
+		private void StringifyBool(StringBuilder builder) {
+			builder.Append(b ? "true" : "false");
+		}
+
+		private static void StringifyNull(StringBuilder builder) {
+			builder.Append("null");
 		}
 
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
@@ -1304,42 +1315,42 @@ namespace Defective.JSON {
 		}
 
 		public Dictionary<string, string> ToDictionary() {
-			if (type == Type.OBJECT) {
-				var result = new Dictionary<string, string>();
-				for (var index = 0; index < list.Count; index++) {
-					var val = list[index];
-					switch (val.type) {
-						case Type.STRING:
-							result.Add(keys[index], val.str);
-							break;
-						case Type.NUMBER:
-							result.Add(keys[index], val.n.ToString(CultureInfo.InvariantCulture));
-							break;
-						case Type.BOOL:
-							result.Add(keys[index], val.b.ToString(CultureInfo.InvariantCulture));
-							break;
-						default:
+			if (type != Type.OBJECT) {
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
-							Debug.LogWarning
+				Debug.Log
+#else
+				Debug.WriteLine
+#endif
+					("Tried to turn non-Object JSONObject into a dictionary");
+
+				return null;
+			}
+
+			var result = new Dictionary<string, string>();
+			for (var index = 0; index < list.Count; index++) {
+				var val = list[index];
+				switch (val.type) {
+					case Type.STRING:
+						result.Add(keys[index], val.str);
+						break;
+					case Type.NUMBER:
+						result.Add(keys[index], val.n.ToString(CultureInfo.InvariantCulture));
+						break;
+					case Type.BOOL:
+						result.Add(keys[index], val.b.ToString(CultureInfo.InvariantCulture));
+						break;
+					default:
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+						Debug.LogWarning
 #else
 							Debug.WriteLine
 #endif
-								("Omitting object: " + keys[index] + " in dictionary conversion");
-							break;
-					}
+							("Omitting object: " + keys[index] + " in dictionary conversion");
+						break;
 				}
-
-				return result;
 			}
 
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
-			Debug.Log
-#else
-			Debug.WriteLine
-#endif
-				("Tried to turn non-Object JSONObject into a dictionary");
-
-			return null;
+			return result;
 		}
 
 		public static implicit operator bool(JSONObject o) {

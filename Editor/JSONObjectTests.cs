@@ -28,21 +28,23 @@ using NUnit.Framework;
 namespace Defective.JSON.Tests {
 	class JSONObjectTests {
 		const string TestJsonString = "{\"TestObject\":{\"SomeText\":\"Blah\",\"SomeObject\":{\"SomeNumber\":42,\"SomeFloat\":13.37,\"SomeBool\":true,\"SomeNull\":null},\"SomeEmptyObject\":{},\"SomeEmptyArray\":[],\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"}}";
-		const string TestPrettyJsonString = "{\n\t\"TestObject\":{\n\t\t\"SomeText\":\"Blah\",\n\t\t\"SomeObject\":{\n\t\t\t\"SomeNumber\":42,\n\t\t\t\"SomeFloat\":13.37,\n\t\t\t\"SomeBool\":true,\n\t\t\t\"SomeNull\":null\n\t\t},\n\t\t\"SomeEmptyObject\":{},\n\t\t\"SomeEmptyArray\":[],\n\t\t\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"\n\t}\n}";
+		const string TestPrettyJsonString = "{\r\n\t\"TestObject\":{\r\n\t\t\"SomeText\":\"Blah\",\r\n\t\t\"SomeObject\":{\r\n\t\t\t\"SomeNumber\":42,\r\n\t\t\t\"SomeFloat\":13.37,\r\n\t\t\t\"SomeBool\":true,\r\n\t\t\t\"SomeNull\":null\r\n\t\t},\r\n\t\t\"SomeEmptyObject\":{},\r\n\t\t\"SomeEmptyArray\":[],\r\n\t\t\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"\r\n\t}\r\n}";
 		const string TestFieldName = "TestField";
 		const string TestJsonFormat = "{{\"" + TestFieldName + "\":{0}}}";
 		const string TestJsonFormatFloat = "{{\"" + TestFieldName + "\":{0:R}}}";
 
+		static void ValidateJsonString(JSONObject jsonObject, string expected, bool pretty = false) {
+			Assert.That(jsonObject.ToString(pretty), Is.EqualTo(expected));
+		}
+
 		[Test]
 		public void InputMatchesOutput() {
-			var jsonObject = new JSONObject(TestJsonString);
-			Assert.That(jsonObject.ToString(), Is.EqualTo(TestJsonString));
+			ValidateJsonString(new JSONObject(TestJsonString), TestJsonString);
 		}
 
 		[Test]
 		public void PrettyInputMatchesPrettyOutput() {
-			var jsonObject = new JSONObject(TestPrettyJsonString);
-			Assert.That(jsonObject.ToString(true), Is.EqualTo(TestPrettyJsonString));
+			ValidateJsonString(new JSONObject(TestPrettyJsonString), TestPrettyJsonString, true);
 		}
 
 		[TestCase(long.MaxValue)]
@@ -94,7 +96,7 @@ namespace Defective.JSON.Tests {
 		public void EncodeLong(long value) {
 			var jsonObject = new JSONObject();
 			jsonObject.AddField(TestFieldName, value);
-			Assert.That(jsonObject.ToString(), Is.EqualTo(string.Format(TestJsonFormat, value)));
+			ValidateJsonString(jsonObject, string.Format(TestJsonFormat, value));
 		}
 
 		[TestCase(float.NegativeInfinity)]
@@ -114,7 +116,7 @@ namespace Defective.JSON.Tests {
 			var expected = (double) value;
 #endif
 
-			Assert.That(jsonObject.ToString(), Is.EqualTo(string.Format(TestJsonFormatFloat, expected)));
+			ValidateJsonString(jsonObject, string.Format(TestJsonFormatFloat, expected));
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -136,7 +138,7 @@ namespace Defective.JSON.Tests {
 			var expected = value;
 #endif
 
-			Assert.That(jsonObject.ToString(), Is.EqualTo(string.Format(TestJsonFormatFloat, expected)));
+			ValidateJsonString(jsonObject, string.Format(TestJsonFormatFloat, expected));
 		}
 
 		[TestCase(long.MaxValue)]
@@ -145,8 +147,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(42)]
 		public void EncodeAndParseLong(long value) {
 			var jsonText = string.Format(TestJsonFormat, value);
-			var jsonObject = new JSONObject(jsonText);
-			Assert.That(jsonObject.ToString(), Is.EqualTo(jsonText));
+			ValidateJsonString(new JSONObject(jsonText), jsonText);
 		}
 
 		[TestCase(float.NegativeInfinity)]
@@ -158,8 +159,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(42)]
 		public void EncodeAndParseFloat(float value) {
 			var jsonText = string.Format(TestJsonFormatFloat, value);
-			var jsonObject = new JSONObject(jsonText);
-			Assert.That(jsonObject.ToString(), Is.EqualTo(jsonText));
+			ValidateJsonString(new JSONObject(jsonText), jsonText);
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -173,7 +173,6 @@ namespace Defective.JSON.Tests {
 		[TestCase(42)]
 		public void EncodeAndParseDouble(double value) {
 			var jsonText = string.Format(TestJsonFormatFloat, value);
-			var jsonObject = new JSONObject(jsonText);
 
 #if JSONOBJECT_USE_FLOAT
 			var expected = string.Format(TestJsonFormatFloat, (float) value);
@@ -181,7 +180,7 @@ namespace Defective.JSON.Tests {
 			var expected = jsonText;
 #endif
 
-			Assert.That(jsonObject.ToString(), Is.EqualTo(expected));
+			ValidateJsonString(new JSONObject(jsonText), expected);
 		}
 	}
 }
