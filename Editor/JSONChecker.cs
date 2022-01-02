@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 //#define JSONOBJECT_PERFORMANCE_TEST //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
 
+using Defective.JSON.Tests;
 using UnityEngine;
 using UnityEditor;
 #if UNITY_2017_1_OR_NEWER
@@ -34,7 +35,7 @@ using UnityEngine.Profiling;
 
 namespace Defective.JSON {
 	public class JSONChecker : EditorWindow {
-		string testJsonString =  "{\r\n\t\"TestObject\":{\r\n\t\t\"SomeText\":\"Blah\",\r\n\t\t\"SomeObject\":{\r\n\t\t\t\"SomeNumber\":42,\r\n\t\t\t\"SomeFloat\":13.37,\r\n\t\t\t\"SomeBool\":true,\r\n\t\t\t\"SomeNull\":null\r\n\t\t},\r\n\t\t\"SomeEmptyObject\":{},\r\n\t\t\"SomeEmptyArray\":[],\r\n\t\t\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"\r\n\t}\r\n}";
+		string testJsonString = JSONObjectTestStrings.PrettyJsonString;
 		string url = "";
 		JSONObject jsonObject;
 

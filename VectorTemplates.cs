@@ -28,23 +28,27 @@ namespace Defective.JSON {
 		/*
 		 * Vector2
 		 */
-		public static Vector2 ToVector2(JSONObject jsonObject) {
+		public static Vector2 ToVector2(this JSONObject jsonObject) {
 			var x = jsonObject["x"] ? jsonObject["x"].floatValue : 0;
 			var y = jsonObject["y"] ? jsonObject["y"].floatValue : 0;
 			return new Vector2(x, y);
 		}
 
-		public static JSONObject FromVector2(Vector2 vector) {
+		public static JSONObject FromVector2(this Vector2 vector) {
 			var jsonObject = JSONObject.emptyObject;
 			if (vector.x != 0) jsonObject.AddField("x", vector.x);
 			if (vector.y != 0) jsonObject.AddField("y", vector.y);
 			return jsonObject;
 		}
 
+		public static JSONObject ToJson(this Vector2 vector) {
+			return vector.FromVector2();
+		}
+
 		/*
 		 * Vector3
 		 */
-		public static JSONObject FromVector3(Vector3 vector) {
+		public static JSONObject FromVector3(this Vector3 vector) {
 			var jsonObject = JSONObject.emptyObject;
 			if (vector.x != 0) jsonObject.AddField("x", vector.x);
 			if (vector.y != 0) jsonObject.AddField("y", vector.y);
@@ -52,17 +56,21 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
-		public static Vector3 ToVector3(JSONObject jsonObject) {
+		public static Vector3 ToVector3(this JSONObject jsonObject) {
 			var x = jsonObject["x"] ? jsonObject["x"].floatValue : 0;
 			var y = jsonObject["y"] ? jsonObject["y"].floatValue : 0;
 			var z = jsonObject["z"] ? jsonObject["z"].floatValue : 0;
 			return new Vector3(x, y, z);
 		}
 
+		public static JSONObject ToJson(this Vector3 vector) {
+			return vector.FromVector3();
+		}
+
 		/*
 		 * Vector4
 		 */
-		public static JSONObject FromVector4(Vector4 vector) {
+		public static JSONObject FromVector4(this Vector4 vector) {
 			var jsonObject = JSONObject.emptyObject;
 			if (vector.x != 0) jsonObject.AddField("x", vector.x);
 			if (vector.y != 0) jsonObject.AddField("y", vector.y);
@@ -71,7 +79,7 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
-		public static Vector4 ToVector4(JSONObject jsonObject) {
+		public static Vector4 ToVector4(this JSONObject jsonObject) {
 			var x = jsonObject["x"] ? jsonObject["x"].floatValue : 0;
 			var y = jsonObject["y"] ? jsonObject["y"].floatValue : 0;
 			var z = jsonObject["z"] ? jsonObject["z"].floatValue : 0;
@@ -79,11 +87,15 @@ namespace Defective.JSON {
 			return new Vector4(x, y, z, w);
 		}
 
+		public static JSONObject ToJson(this Vector4 vector) {
+			return vector.FromVector4();
+		}
+
 		/*
 		 * Matrix4x4
 		 */
 		// ReSharper disable once InconsistentNaming
-		public static JSONObject FromMatrix4x4(Matrix4x4 matrix) {
+		public static JSONObject FromMatrix4x4(this Matrix4x4 matrix) {
 			var jsonObject = JSONObject.emptyObject;
 			if (matrix.m00 != 0) jsonObject.AddField("m00", matrix.m00);
 			if (matrix.m01 != 0) jsonObject.AddField("m01", matrix.m01);
@@ -105,7 +117,7 @@ namespace Defective.JSON {
 		}
 
 		// ReSharper disable once InconsistentNaming
-		public static Matrix4x4 ToMatrix4x4(JSONObject jsonObject) {
+		public static Matrix4x4 ToMatrix4x4(this JSONObject jsonObject) {
 			var matrix = new Matrix4x4();
 			if (jsonObject["m00"]) matrix.m00 = jsonObject["m00"].floatValue;
 			if (jsonObject["m01"]) matrix.m01 = jsonObject["m01"].floatValue;
@@ -126,10 +138,14 @@ namespace Defective.JSON {
 			return matrix;
 		}
 
+		public static JSONObject ToJson(this Matrix4x4 matrix) {
+			return matrix.FromMatrix4x4();
+		}
+
 		/*
 		 * Quaternion
 		 */
-		public static JSONObject FromQuaternion(Quaternion quaternion) {
+		public static JSONObject FromQuaternion(this Quaternion quaternion) {
 			var jsonObject = JSONObject.emptyObject;
 			if (quaternion.w != 0) jsonObject.AddField("w", quaternion.w);
 			if (quaternion.x != 0) jsonObject.AddField("x", quaternion.x);
@@ -138,7 +154,7 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
-		public static Quaternion ToQuaternion(JSONObject jsonObject) {
+		public static Quaternion ToQuaternion(this JSONObject jsonObject) {
 			var x = jsonObject["x"] ? jsonObject["x"].floatValue : 0;
 			var y = jsonObject["y"] ? jsonObject["y"].floatValue : 0;
 			var z = jsonObject["z"] ? jsonObject["z"].floatValue : 0;
@@ -146,10 +162,14 @@ namespace Defective.JSON {
 			return new Quaternion(x, y, z, w);
 		}
 
+		public static JSONObject ToJson(this Quaternion quaternion) {
+			return quaternion.FromQuaternion();
+		}
+
 		/*
 		 * Color
 		 */
-		public static JSONObject FromColor(Color color) {
+		public static JSONObject FromColor(this Color color) {
 			var jsonObject = JSONObject.emptyObject;
 			if (color.r != 0) jsonObject.AddField("r", color.r);
 			if (color.g != 0) jsonObject.AddField("g", color.g);
@@ -158,7 +178,7 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
-		public static Color ToColor(JSONObject jsonObject) {
+		public static Color ToColor(this JSONObject jsonObject) {
 			var color = new Color();
 			for (var i = 0; i < jsonObject.count; i++) {
 				switch (jsonObject.keys[i]) {
@@ -180,21 +200,32 @@ namespace Defective.JSON {
 			return color;
 		}
 
+		public static JSONObject ToJson(this Color color) {
+			return color.FromColor();
+		}
+
 		/*
 		 * Layer Mask
 		 */
-		public static JSONObject FromLayerMask(LayerMask layerMask) {
+		public static JSONObject FromLayerMask(this LayerMask layerMask) {
 			var jsonObject = JSONObject.emptyObject;
 			jsonObject.AddField("value", layerMask.value);
 			return jsonObject;
 		}
 
-		public static LayerMask ToLayerMask(JSONObject jsonObject) {
+		public static LayerMask ToLayerMask(this JSONObject jsonObject) {
 			var layerMask = new LayerMask { value = jsonObject["value"].intValue };
 			return layerMask;
 		}
 
-		public static JSONObject FromRect(Rect rect) {
+		public static JSONObject ToJson(this LayerMask layerMask) {
+			return layerMask.FromLayerMask();
+		}
+
+		/*
+		 * Rect
+		 */
+		public static JSONObject FromRect(this Rect rect) {
 			var jsonObject = JSONObject.emptyObject;
 			if (rect.x != 0) jsonObject.AddField("x", rect.x);
 			if (rect.y != 0) jsonObject.AddField("y", rect.y);
@@ -203,7 +234,7 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
-		public static Rect ToRect(JSONObject jsonObject) {
+		public static Rect ToRect(this JSONObject jsonObject) {
 			var rect = new Rect();
 			for (var i = 0; i < jsonObject.count; i++) {
 				switch (jsonObject.keys[i]) {
@@ -225,7 +256,14 @@ namespace Defective.JSON {
 			return rect;
 		}
 
-		public static JSONObject FromRectOffset(RectOffset rectOffset) {
+		public static JSONObject ToJson(this Rect rect) {
+			return rect.FromRect();
+		}
+
+		/*
+		* Rect Offset
+		 */
+		public static JSONObject FromRectOffset(this RectOffset rectOffset) {
 			var jsonObject = JSONObject.emptyObject;
 			if (rectOffset.bottom != 0) jsonObject.AddField("bottom", rectOffset.bottom);
 			if (rectOffset.left != 0) jsonObject.AddField("left", rectOffset.left);
@@ -234,7 +272,7 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
-		public static RectOffset ToRectOffset(JSONObject jsonObject) {
+		public static RectOffset ToRectOffset(this JSONObject jsonObject) {
 			var rectOffset = new RectOffset();
 			for (var i = 0; i < jsonObject.count; i++) {
 				switch (jsonObject.keys[i]) {
@@ -254,6 +292,10 @@ namespace Defective.JSON {
 			}
 
 			return rectOffset;
+		}
+
+		public static JSONObject ToJson(this RectOffset rectOffset) {
+			return rectOffset.FromRectOffset();
 		}
 	}
 }

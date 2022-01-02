@@ -46,6 +46,8 @@ namespace Defective.JSON {
 		const int MaxPoolSize = 10000;
 		static readonly Queue<JSONObject> Pool = new Queue<JSONObject>();
 		static bool poolingEnabled = true;
+
+		bool isPooled;
 #endif
 
 #if !JSONOBJECT_DISABLE_PRETTY_PRINT
@@ -88,8 +90,6 @@ namespace Defective.JSON {
 				return list.Count;
 			}
 		}
-
-		bool isPooled;
 
 		public List<JSONObject> list;
 		public List<string> keys;
@@ -230,7 +230,8 @@ namespace Defective.JSON {
 		}
 
 		/// <summary>
-		/// Convenience function for creating a JSONObject containing a string.  This is not part of the constructor so that malformed JSON data doesn't just turn into a string object
+		/// Convenience function for creating a JSONObject containing a string.
+		/// This is not part of the constructor so that malformed JSON data doesn't just turn into a string object
 		/// </summary>
 		/// <param name="value">The string value for the new JSONObject</param>
 		/// <returns>Thew new JSONObject</returns>
@@ -359,19 +360,19 @@ namespace Defective.JSON {
 		}
 
 		/// <summary>
-		/// Create a JSONObject by parsing string data
+		/// Create a JSONObject (using pooling if enabled) using a string containing valid JSON
 		/// </summary>
-		/// <param name="val">The string to be parsed</param>
+		/// <param name="jsonString">A string containing valid JSON to be parsed into objects</param>
 		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
 		/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
 		/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
 		/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
 		/// parse "a string" into a string-type </param>
-		/// <returns></returns>
-		public static JSONObject Create(string val, int maxDepth = -2, bool storeExcessLevels = false,
+		/// <returns>A JSONObject containing the parsed data</returns>
+		public static JSONObject Create(string jsonString, int maxDepth = -2, bool storeExcessLevels = false,
 			bool strict = false) {
 			var jsonObject = Create();
-			jsonObject.Parse(val, maxDepth, storeExcessLevels, strict);
+			jsonObject.Parse(jsonString, maxDepth, storeExcessLevels, strict);
 			return jsonObject;
 		}
 
@@ -397,14 +398,15 @@ namespace Defective.JSON {
 		public JSONObject() { }
 
 		/// <summary>
-		/// Create a new JSONObject using a string containing valid JSON
+		/// Construct a new JSONObject using a string containing valid JSON
 		/// </summary>
-		/// <param name="jsonString"></param>
-		/// <param name="maxDepth"></param>
-		/// <param name="storeExcessLevels"></param>
-		/// <param name="strict"></param>
+		/// <param name="jsonString">A string containing valid JSON to be parsed into objects</param>
+		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
+		/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
+		/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
+		/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
+		/// parse "a string" into a string-type </param>
 		public JSONObject(string jsonString, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
-			//create a new JSONObject from a string (this will also create any children, and parse the whole string)
 			Parse(jsonString, maxDepth, storeExcessLevels, strict);
 		}
 
@@ -573,7 +575,7 @@ namespace Defective.JSON {
 									if (type == Type.Object)
 										keys.Add(propName);
 									if (maxDepth != -1) //maxDepth of -1 is the end of the line
-										list.Add(Create(inner, (maxDepth < -1) ? -2 : maxDepth - 1, storeExcessLevels));
+										list.Add(Create(inner, maxDepth < -1 ? -2 : maxDepth - 1, storeExcessLevels));
 									else if (storeExcessLevels)
 										list.Add(CreateBakedObject(inner));
 
@@ -1031,8 +1033,7 @@ namespace Defective.JSON {
 		}
 
 		static string EscapeString(string input) {
-			var escaped = input.Replace("\\", "\\\\");
-			escaped = escaped.Replace("\b", "\\b");
+			var escaped = input.Replace("\b", "\\b");
 			escaped = escaped.Replace("\f", "\\f");
 			escaped = escaped.Replace("\n", "\\n");
 			escaped = escaped.Replace("\r", "\\r");
@@ -1042,14 +1043,13 @@ namespace Defective.JSON {
 		}
 
 		static string UnEscapeString(string input) {
-			var escaped = input.Replace("\\\"", "\"");
-			escaped = escaped.Replace("\\b", "\b");
-			escaped = escaped.Replace("\\f", "\f");
-			escaped = escaped.Replace("\\n", "\n");
-			escaped = escaped.Replace("\\r", "\r");
-			escaped = escaped.Replace("\\t", "\t");
-			escaped = escaped.Replace("\\\\", "\\");
-			return escaped;
+			var unescaped = input.Replace("\\\"", "\"");
+			unescaped = unescaped.Replace("\\b", "\b");
+			unescaped = unescaped.Replace("\\f", "\f");
+			unescaped = unescaped.Replace("\\n", "\n");
+			unescaped = unescaped.Replace("\\r", "\r");
+			unescaped = unescaped.Replace("\\t", "\t");
+			return unescaped;
 		}
 
 		public IEnumerable<string> PrintAsync(bool pretty = false) {
