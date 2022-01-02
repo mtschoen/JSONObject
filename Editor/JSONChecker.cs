@@ -28,7 +28,7 @@ using UnityEditor;
 using UnityEngine.Networking;
 #endif
 
-#if JSONOBJECT_PERFORMANCE_TEST && UNITY_5_6_OR_NEWER
+#if JSONOBJECT_PERFORMANCE_TEST && UNITY_5_5_OR_NEWER
 using UnityEngine.Profiling;
 #endif
 
