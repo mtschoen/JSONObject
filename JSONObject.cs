@@ -28,10 +28,6 @@ THE SOFTWARE.
 #define USING_UNITY
 #endif
 
-#if USING_UNITY
-using UnityEngine;
-using Debug = UnityEngine.Debug;
-#endif
 using System;
 using System.Diagnostics;
 using System.Collections;
@@ -39,11 +35,17 @@ using System.Collections.Generic;
 using System.Text;
 using System.Globalization;
 
+#if USING_UNITY
+using UnityEngine;
+using Debug = UnityEngine.Debug;
+#endif
+
 namespace Defective.JSON {
 	public class JSONObject : IEnumerable {
 #if JSONOBJECT_POOLING
-		const int MAX_POOL_SIZE = 10000;
-		public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
+		const int MaxPoolSize = 10000;
+		static readonly Queue<JSONObject> Pool = new Queue<JSONObject>();
+		static bool poolingEnabled = true;
 #endif
 
 #if !JSONOBJECT_DISABLE_PRETTY_PRINT
@@ -63,70 +65,90 @@ namespace Defective.JSON {
 		public static readonly char[] Whitespace = { ' ', '\r', '\n', '\t', '\uFEFF', '\u0009' };
 
 		public enum Type {
-			NULL,
-			STRING,
-			NUMBER,
-			OBJECT,
-			ARRAY,
-			BOOL,
-			BAKED
+			Null,
+			String,
+			Number,
+			Object,
+			Array,
+			Bool,
+			Baked
 		}
 
 		public bool isContainer {
-			get { return type == Type.ARRAY || type == Type.OBJECT; }
+			get { return type == Type.Array || type == Type.Object; }
 		}
 
-		public Type type = Type.NULL;
+		public Type type = Type.Null;
 
-		public int Count {
+		public int count {
 			get {
 				if (list == null)
 					return -1;
+
 				return list.Count;
 			}
 		}
 
+		bool isPooled;
+
 		public List<JSONObject> list;
 		public List<string> keys;
-		public string str;
+		public string stringValue;
+		public bool isInteger;
+		public long longValue;
+		public bool boolValue;
 #if JSONOBJECT_USE_FLOAT
-		public float n;
-		public float f {
-			get { return n; }
+		public float floatValue;
+		public double doubleValue {
+			get {
+				return floatValue;
+			}
+			set {
+				floatValue = (float) value;
+			}
 		}
 #else
-		public double n;
-		public float f {
+		public double doubleValue;
+		public float floatValue {
 			get {
-				return (float)n;
+				return (float) doubleValue;
+			}
+			set {
+				doubleValue = value;
 			}
 		}
 #endif
-		public bool useInt;
-		public long i;
-		public bool b;
+
+		public int intValue {
+			get {
+				return (int) longValue;
+			}
+			set {
+				longValue = value;
+			}
+		}
 
 		public delegate void AddJSONContents(JSONObject self);
 
-		public static JSONObject nullJO {
-			get { return Create(Type.NULL); }
-		} //an empty, null object
+		public static JSONObject nullObject {
+			get { return Create(Type.Null); }
+		}
 
-		public static JSONObject obj {
-			get { return Create(Type.OBJECT); }
-		} //an empty object
+		public static JSONObject emptyObject {
+			get { return Create(Type.Object); }
+		}
 
-		public static JSONObject arr {
-			get { return Create(Type.ARRAY); }
-		} //an empty array
+		public static JSONObject emptyArray {
+			get { return Create(Type.Array); }
+		}
 
 		public JSONObject(Type type) {
 			this.type = type;
 			switch (type) {
-				case Type.ARRAY:
+				case Type.Array:
 					list = new List<JSONObject>();
 					break;
-				case Type.OBJECT:
+				case Type.Object:
 					list = new List<JSONObject>();
 					keys = new List<string>();
 					break;
@@ -134,43 +156,54 @@ namespace Defective.JSON {
 		}
 
 		public JSONObject(bool value) {
-			type = Type.BOOL;
-			b = value;
+			type = Type.Bool;
+			boolValue = value;
 		}
 
 		public JSONObject(float value) {
-			type = Type.NUMBER;
-			n = value;
+			type = Type.Number;
+#if JSONOBJECT_USE_FLOAT
+			floatValue = value;
+#else
+			doubleValue = value;
+#endif
 		}
 
 		public JSONObject(double value) {
-			type = Type.NUMBER;
+			type = Type.Number;
 #if JSONOBJECT_USE_FLOAT
-			n = (float)value;
+			floatValue = (float)value;
 #else
-			n = value;
+			doubleValue = value;
 #endif
 		}
 
 		public JSONObject(int value) {
-			type = Type.NUMBER;
-			i = value;
-			useInt = true;
-			n = value;
+			type = Type.Number;
+			longValue = value;
+			isInteger = true;
+#if JSONOBJECT_USE_FLOAT
+			floatValue = value;
+#else
+			doubleValue = value;
+#endif
 		}
 
 		public JSONObject(long value) {
-			type = Type.NUMBER;
-			i = value;
-			useInt = true;
-			n = value;
+			type = Type.Number;
+			longValue = value;
+			isInteger = true;
+#if JSONOBJECT_USE_FLOAT
+			floatValue = value;
+#else
+			doubleValue = value;
+#endif
 		}
 
 		public JSONObject(Dictionary<string, string> dictionary) {
-			type = Type.OBJECT;
+			type = Type.Object;
 			keys = new List<string>();
 			list = new List<JSONObject>();
-			//Not sure if it's worth removing the foreach here
 			foreach (KeyValuePair<string, string> kvp in dictionary) {
 				keys.Add(kvp.Key);
 				list.Add(CreateStringObject(kvp.Value));
@@ -178,10 +211,9 @@ namespace Defective.JSON {
 		}
 
 		public JSONObject(Dictionary<string, JSONObject> dictionary) {
-			type = Type.OBJECT;
+			type = Type.Object;
 			keys = new List<string>();
 			list = new List<JSONObject>();
-			//Not sure if it's worth removing the foreach here
 			foreach (KeyValuePair<string, JSONObject> kvp in dictionary) {
 				keys.Add(kvp.Key);
 				list.Add(kvp.Value);
@@ -193,11 +225,15 @@ namespace Defective.JSON {
 		}
 
 		public JSONObject(JSONObject[] objects) {
-			type = Type.ARRAY;
+			type = Type.Array;
 			list = new List<JSONObject>(objects);
 		}
 
-		//Convenience function for creating a JSONObject containing a string.  This is not part of the constructor so that malformed JSON data doesn't just turn into a string object
+		/// <summary>
+		/// Convenience function for creating a JSONObject containing a string.  This is not part of the constructor so that malformed JSON data doesn't just turn into a string object
+		/// </summary>
+		/// <param name="value">The string value for the new JSONObject</param>
+		/// <returns>Thew new JSONObject</returns>
 		public static JSONObject StringObject(string value) {
 			return CreateStringObject(value);
 		}
@@ -205,30 +241,31 @@ namespace Defective.JSON {
 		public void Absorb(JSONObject jsonObject) {
 			list.AddRange(jsonObject.list);
 			keys.AddRange(jsonObject.keys);
-			str = jsonObject.str;
-			n = jsonObject.n;
-			useInt = jsonObject.useInt;
-			i = jsonObject.i;
-			b = jsonObject.b;
+			stringValue = jsonObject.stringValue;
+#if JSONOBJECT_USE_FLOAT
+			floatValue = jsonObject.floatValue;
+#else
+			doubleValue = jsonObject.doubleValue;
+#endif
+
+			isInteger = jsonObject.isInteger;
+			longValue = jsonObject.longValue;
+			boolValue = jsonObject.boolValue;
 			type = jsonObject.type;
 		}
 
 		public static JSONObject Create() {
 #if JSONOBJECT_POOLING
-			JSONObject result = null;
-			while(result == null && releaseQueue.Count > 0) {
-				result = releaseQueue.Dequeue();
-#if DEV
-				//The following cases should NEVER HAPPEN (but they do...)
-				if(result == null)
-					Debug.WriteLine("wtf " + releaseQueue.Count);
-				else if(result.list != null)
-					Debug.WriteLine("wtflist " + result.list.Count);
-#endif
+			lock (Pool) {
+				if (Pool.Count > 0) {
+					var result = Pool.Dequeue();
+
+					result.isPooled = false;
+					return result;
+				}
 			}
-			if(result != null)
-				return result;
 #endif
+
 			return new JSONObject();
 		}
 
@@ -236,10 +273,10 @@ namespace Defective.JSON {
 			var jsonObject = Create();
 			jsonObject.type = type;
 			switch (type) {
-				case Type.ARRAY:
+				case Type.Array:
 					jsonObject.list = new List<JSONObject>();
 					break;
-				case Type.OBJECT:
+				case Type.Object:
 					jsonObject.list = new List<JSONObject>();
 					jsonObject.keys = new List<string>();
 					break;
@@ -250,58 +287,74 @@ namespace Defective.JSON {
 
 		public static JSONObject Create(bool value) {
 			var jsonObject = Create();
-			jsonObject.type = Type.BOOL;
-			jsonObject.b = value;
+			jsonObject.type = Type.Bool;
+			jsonObject.boolValue = value;
 			return jsonObject;
 		}
 
 		public static JSONObject Create(float value) {
 			var jsonObject = Create();
-			jsonObject.type = Type.NUMBER;
-			jsonObject.n = value;
+			jsonObject.type = Type.Number;
+#if JSONOBJECT_USE_FLOAT
+			jsonObject.floatValue = value;
+#else
+			jsonObject.doubleValue = value;
+#endif
+
 			return jsonObject;
 		}
 
 		public static JSONObject Create(double value) {
 			var jsonObject = Create();
-			jsonObject.type = Type.NUMBER;
+			jsonObject.type = Type.Number;
 #if JSONOBJECT_USE_FLOAT
-			jsonObject.n = (float)value;
+			jsonObject.floatValue = (float)value;
 #else
-			jsonObject.n = value;
+			jsonObject.doubleValue = value;
 #endif
+
 			return jsonObject;
 		}
 
 		public static JSONObject Create(int value) {
 			var jsonObject = Create();
-			jsonObject.type = Type.NUMBER;
-			jsonObject.n = value;
-			jsonObject.useInt = true;
-			jsonObject.i = value;
+			jsonObject.type = Type.Number;
+			jsonObject.isInteger = true;
+			jsonObject.longValue = value;
+#if JSONOBJECT_USE_FLOAT
+			jsonObject.floatValue = value;
+#else
+			jsonObject.doubleValue = value;
+#endif
+
 			return jsonObject;
 		}
 
 		public static JSONObject Create(long value) {
 			var jsonObject = Create();
-			jsonObject.type = Type.NUMBER;
-			jsonObject.n = value;
-			jsonObject.useInt = true;
-			jsonObject.i = value;
+			jsonObject.type = Type.Number;
+			jsonObject.isInteger = true;
+			jsonObject.longValue = value;
+#if JSONOBJECT_USE_FLOAT
+			jsonObject.floatValue = value;
+#else
+			jsonObject.doubleValue = value;
+#endif
+
 			return jsonObject;
 		}
 
 		public static JSONObject CreateStringObject(string value) {
 			var jsonObject = Create();
-			jsonObject.type = Type.STRING;
-			jsonObject.str = value;
+			jsonObject.type = Type.String;
+			jsonObject.stringValue = value;
 			return jsonObject;
 		}
 
 		public static JSONObject CreateBakedObject(string value) {
 			var bakedObject = Create();
-			bakedObject.type = Type.BAKED;
-			bakedObject.str = value;
+			bakedObject.type = Type.Baked;
+			bakedObject.stringValue = value;
 			return bakedObject;
 		}
 
@@ -330,11 +383,10 @@ namespace Defective.JSON {
 
 		public static JSONObject Create(Dictionary<string, string> dictionary) {
 			var jsonObject = Create();
-			jsonObject.type = Type.OBJECT;
+			jsonObject.type = Type.Object;
 			jsonObject.keys = new List<string>();
 			jsonObject.list = new List<JSONObject>();
-			//Not sure if it's worth removing the foreach here
-			foreach (KeyValuePair<string, string> kvp in dictionary) {
+			foreach (var kvp in dictionary) {
 				jsonObject.keys.Add(kvp.Key);
 				jsonObject.list.Add(CreateStringObject(kvp.Value));
 			}
@@ -344,9 +396,16 @@ namespace Defective.JSON {
 
 		public JSONObject() { }
 
-		public JSONObject(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
+		/// <summary>
+		/// Create a new JSONObject using a string containing valid JSON
+		/// </summary>
+		/// <param name="jsonString"></param>
+		/// <param name="maxDepth"></param>
+		/// <param name="storeExcessLevels"></param>
+		/// <param name="strict"></param>
+		public JSONObject(string jsonString, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
 			//create a new JSONObject from a string (this will also create any children, and parse the whole string)
-			Parse(str, maxDepth, storeExcessLevels, strict);
+			Parse(jsonString, maxDepth, storeExcessLevels, strict);
 		}
 
 		void Parse(string inputString, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
@@ -354,7 +413,7 @@ namespace Defective.JSON {
 				inputString = inputString.Trim(Whitespace);
 				if (strict) {
 					if (inputString[0] != '[' && inputString[0] != '{') {
-						type = Type.NULL;
+						type = Type.Null;
 #if USING_UNITY
 						Debug.LogWarning
 #else
@@ -377,38 +436,38 @@ namespace Defective.JSON {
 						type = Type.NULL;
 #else
 					if (string.Compare(inputString, True, true, CultureInfo.InvariantCulture) == 0) {
-						type = Type.BOOL;
-						b = true;
+						type = Type.Bool;
+						boolValue = true;
 					} else if (string.Compare(inputString, False, true, CultureInfo.InvariantCulture) == 0) {
-						type = Type.BOOL;
-						b = false;
+						type = Type.Bool;
+						boolValue = false;
 					} else if (string.Compare(inputString, Null, true, CultureInfo.InvariantCulture) == 0) {
-						type = Type.NULL;
+						type = Type.Null;
 #endif
 #if JSONOBJECT_USE_FLOAT
 					} else if (inputString == Infinity) {
-						type = Type.NUMBER;
-						n = float.PositiveInfinity;
+						type = Type.Number;
+						floatValue = float.PositiveInfinity;
 					} else if (inputString == NegativeInfinity) {
-						type = Type.NUMBER;
-						n = float.NegativeInfinity;
+						type = Type.Number;
+						floatValue = float.NegativeInfinity;
 					} else if (inputString == NaN) {
-						type = Type.NUMBER;
-						n = float.NaN;
+						type = Type.Number;
+						floatValue = float.NaN;
 #else
 					} else if(inputString == Infinity) {
-						type = Type.NUMBER;
-						n = double.PositiveInfinity;
+						type = Type.Number;
+						doubleValue = double.PositiveInfinity;
 					} else if(inputString == NegativeInfinity) {
-						type = Type.NUMBER;
-						n = double.NegativeInfinity;
+						type = Type.Number;
+						doubleValue = double.NegativeInfinity;
 					} else if(inputString == NaN) {
-						type = Type.NUMBER;
-						n = double.NaN;
+						type = Type.Number;
+						doubleValue = double.NaN;
 #endif
 					} else if (inputString[0] == '"') {
-						type = Type.STRING;
-						str = UnEscapeString(inputString.Substring(1, inputString.Length - 2));
+						type = Type.String;
+						stringValue = UnEscapeString(inputString.Substring(1, inputString.Length - 2));
 					} else {
 						var tokenTmp = 1;
 						/*
@@ -423,45 +482,42 @@ namespace Defective.JSON {
 						var offset = 0;
 						switch (inputString[offset]) {
 							case '{':
-								type = Type.OBJECT;
+								type = Type.Object;
 								keys = new List<string>();
 								list = new List<JSONObject>();
 								break;
 							case '[':
-								type = Type.ARRAY;
+								type = Type.Array;
 								list = new List<JSONObject>();
 								break;
 							default:
 								try {
 #if JSONOBJECT_USE_FLOAT
-									n = Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
+									floatValue = Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
 #else
-									n = Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
+									doubleValue = Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
 #endif
 									if (!inputString.Contains(".")) {
-										i = Convert.ToInt64(inputString, CultureInfo.InvariantCulture);
-										useInt = true;
+										longValue = Convert.ToInt64(inputString, CultureInfo.InvariantCulture);
+										isInteger = true;
 									}
 
-									type = Type.NUMBER;
+									type = Type.Number;
 								} catch (FormatException) {
-									type = Type.NULL;
+									type = Type.Null;
 #if USING_UNITY
 									Debug.LogWarning
 #else
 									Debug.WriteLine
 #endif
-										("improper JSON formatting:" + inputString);
+										(string.Format("Improper JSON formatting:{0}", inputString));
 								} catch (OverflowException) {
-									type = Type.NUMBER;
-									n = inputString.StartsWith("-")
-										?
+									type = Type.Number;
+
 #if JSONOBJECT_USE_FLOAT
-										float.NegativeInfinity
-										: float.PositiveInfinity;
+									floatValue = inputString.StartsWith("-") ? float.NegativeInfinity : float.PositiveInfinity;
 #else
-										double.NegativeInfinity
-										: double.PositiveInfinity;
+									doubleValue = inputString.StartsWith("-") ? double.NegativeInfinity : double.PositiveInfinity;
 #endif
 								}
 
@@ -483,11 +539,11 @@ namespace Defective.JSON {
 
 							if (inputString[offset] == '"') {
 								if (openQuote) {
-									if (!inProp && depth == 0 && type == Type.OBJECT)
+									if (!inProp && depth == 0 && type == Type.Object)
 										propName = inputString.Substring(tokenTmp + 1, offset - tokenTmp - 1);
 									openQuote = false;
 								} else {
-									if (depth == 0 && type == Type.OBJECT)
+									if (depth == 0 && type == Type.Object)
 										tokenTmp = offset;
 									openQuote = true;
 								}
@@ -496,7 +552,7 @@ namespace Defective.JSON {
 							if (openQuote)
 								continue;
 
-							if (type == Type.OBJECT && depth == 0) {
+							if (type == Type.Object && depth == 0) {
 								if (inputString[offset] == ':') {
 									tokenTmp = offset + 1;
 									inProp = true;
@@ -514,7 +570,7 @@ namespace Defective.JSON {
 								inProp = false;
 								var inner = inputString.Substring(tokenTmp, offset - tokenTmp).Trim(Whitespace);
 								if (inner.Length > 0) {
-									if (type == Type.OBJECT)
+									if (type == Type.Object)
 										keys.Add(propName);
 									if (maxDepth != -1) //maxDepth of -1 is the end of the line
 										list.Add(Create(inner, (maxDepth < -1) ? -2 : maxDepth - 1, storeExcessLevels));
@@ -527,32 +583,32 @@ namespace Defective.JSON {
 							}
 						}
 					}
-				} else type = Type.NULL;
-			} else type = Type.NULL; //If the string is missing, this is a null
+				} else type = Type.Null;
+			} else type = Type.Null; //If the string is missing, this is a null
 		}
 
-		public bool IsNumber {
-			get { return type == Type.NUMBER; }
+		public bool isNumber {
+			get { return type == Type.Number; }
 		}
 
-		public bool IsNull {
-			get { return type == Type.NULL; }
+		public bool isNull {
+			get { return type == Type.Null; }
 		}
 
-		public bool IsString {
-			get { return type == Type.STRING; }
+		public bool isString {
+			get { return type == Type.String; }
 		}
 
-		public bool IsBool {
-			get { return type == Type.BOOL; }
+		public bool isBool {
+			get { return type == Type.Bool; }
 		}
 
-		public bool IsArray {
-			get { return type == Type.ARRAY; }
+		public bool isArray {
+			get { return type == Type.Array; }
 		}
 
-		public bool IsObject {
-			get { return type == Type.OBJECT || type == Type.BAKED; }
+		public bool isObject {
+			get { return type == Type.Object || type == Type.Baked; }
 		}
 
 		public void Add(bool value) {
@@ -587,8 +643,8 @@ namespace Defective.JSON {
 			if (jsonObject == null)
 				return; //Don't do anything if the object is null
 
-			if (type != Type.ARRAY) {
-				type = Type.ARRAY; //Congratulations, son, you're an ARRAY now
+			if (type != Type.Array) {
+				type = Type.Array;
 				if (list == null)
 					list = new List<JSONObject>();
 			}
@@ -627,17 +683,17 @@ namespace Defective.JSON {
 		public void AddField(string name, JSONObject jsonObject) {
 			if (jsonObject) {
 				//Don't do anything if the object is null
-				if (type != Type.OBJECT) {
+				if (type != Type.Object) {
 					if (keys == null)
 						keys = new List<string>();
 
-					if (type == Type.ARRAY) {
+					if (type == Type.Array) {
 						for (var index = 0; index < list.Count; index++)
 							keys.Add(index.ToString(CultureInfo.InvariantCulture));
 					} else if (list == null)
 						list = new List<JSONObject>();
 
-					type = Type.OBJECT; //Congratulations, son, you're an OBJECT now
+					type = Type.Object; //Congratulations, son, you're an OBJECT now
 				}
 
 				keys.Add(name);
@@ -695,10 +751,10 @@ namespace Defective.JSON {
 		}
 
 		public bool GetField(ref bool field, string name, FieldNotFound fail = null) {
-			if (type == Type.OBJECT) {
+			if (type == Type.Object) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
-					field = list[index].b;
+					field = list[index].boolValue;
 					return true;
 				}
 			}
@@ -713,10 +769,14 @@ namespace Defective.JSON {
 		}
 
 		public bool GetField(ref double field, string name, FieldNotFound fail = null) {
-			if (type == Type.OBJECT) {
+			if (type == Type.Object) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
-					field = list[index].n;
+#if JSONOBJECT_USE_FLOAT
+					field = list[index].floatValue;
+#else
+					field = list[index].doubleValue;
+#endif
 					return true;
 				}
 			}
@@ -731,13 +791,13 @@ namespace Defective.JSON {
 		}
 
 		public bool GetField(ref float field, string name, FieldNotFound fail = null) {
-			if (type == Type.OBJECT) {
+			if (type == Type.Object) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
 #if JSONOBJECT_USE_FLOAT
-					field = list[index].n;
+					field = list[index].floatValue;
 #else
-					field = (float) list[index].n;
+					field = (float) list[index].doubleValue;
 #endif
 					return true;
 				}
@@ -753,10 +813,10 @@ namespace Defective.JSON {
 		}
 
 		public bool GetField(ref int field, string name, FieldNotFound fail = null) {
-			if (IsObject) {
+			if (isObject) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
-					field = (int) list[index].i;
+					field = (int) list[index].longValue;
 					return true;
 				}
 			}
@@ -771,10 +831,10 @@ namespace Defective.JSON {
 		}
 
 		public bool GetField(ref long field, string name, FieldNotFound fail = null) {
-			if (IsObject) {
+			if (isObject) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
-					field = list[index].i;
+					field = list[index].longValue;
 					return true;
 				}
 			}
@@ -789,10 +849,10 @@ namespace Defective.JSON {
 		}
 
 		public bool GetField(ref uint field, string name, FieldNotFound fail = null) {
-			if (IsObject) {
+			if (isObject) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
-					field = (uint) list[index].i;
+					field = (uint) list[index].longValue;
 					return true;
 				}
 			}
@@ -807,10 +867,10 @@ namespace Defective.JSON {
 		}
 
 		public bool GetField(ref string field, string name, FieldNotFound fail = null) {
-			if (IsObject) {
+			if (isObject) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
-					field = list[index].str;
+					field = list[index].stringValue;
 					return true;
 				}
 			}
@@ -820,7 +880,7 @@ namespace Defective.JSON {
 		}
 
 		public void GetField(string name, GetFieldResponse response, FieldNotFound fail = null) {
-			if (response != null && IsObject) {
+			if (response != null && isObject) {
 				var index = keys.IndexOf(name);
 				if (index >= 0) {
 					response.Invoke(list[index]);
@@ -833,7 +893,7 @@ namespace Defective.JSON {
 		}
 
 		public JSONObject GetField(string name) {
-			if (IsObject)
+			if (isObject)
 				for (var index = 0; index < keys.Count; index++)
 					if (keys[index] == name)
 						return list[index];
@@ -842,7 +902,7 @@ namespace Defective.JSON {
 		}
 
 		public bool HasFields(string[] names) {
-			if (!IsObject)
+			if (!isObject)
 				return false;
 
 			foreach (var name in names)
@@ -853,7 +913,7 @@ namespace Defective.JSON {
 		}
 
 		public bool HasField(string name) {
-			if (!IsObject)
+			if (!isObject)
 				return false;
 
 			foreach (var fieldName in keys)
@@ -864,16 +924,22 @@ namespace Defective.JSON {
 		}
 
 		public void Clear() {
-			type = Type.NULL;
+			type = Type.Null;
 			if (list != null)
 				list.Clear();
 
 			if (keys != null)
 				keys.Clear();
 
-			str = "";
-			n = 0;
-			b = false;
+			stringValue = "";
+			longValue = 0;
+			boolValue = false;
+			isInteger = false;
+#if JSONOBJECT_USE_FLOAT
+			floatValue = 0;
+#else
+			doubleValue = 0;
+#endif
 		}
 
 		/// <summary>
@@ -897,9 +963,9 @@ namespace Defective.JSON {
 		/// <param name="left">The left (base) object</param>
 		/// <param name="right">The right (new) object</param>
 		static void MergeRecur(JSONObject left, JSONObject right) {
-			if (left.type == Type.NULL) {
+			if (left.type == Type.Null) {
 				left.Absorb(right);
-			} else if (left.type == Type.OBJECT && right.type == Type.OBJECT) {
+			} else if (left.type == Type.Object && right.type == Type.Object) {
 				for (var i = 0; i < right.list.Count; i++) {
 					var key = right.keys[i];
 					if (right[i].isContainer) {
@@ -914,8 +980,8 @@ namespace Defective.JSON {
 							left.AddField(key, right[i]);
 					}
 				}
-			} else if (left.type == Type.ARRAY && right.type == Type.ARRAY) {
-				if (right.Count > left.Count) {
+			} else if (left.type == Type.Array && right.type == Type.Array) {
+				if (right.count > left.count) {
 #if USING_UNITY
 					Debug.LogError
 #else
@@ -939,22 +1005,22 @@ namespace Defective.JSON {
 		}
 
 		public void Bake() {
-			if (type != Type.BAKED) {
-				str = Print();
-				type = Type.BAKED;
+			if (type != Type.Baked) {
+				stringValue = Print();
+				type = Type.Baked;
 			}
 		}
 
 		public IEnumerable BakeAsync() {
-			if (type != Type.BAKED) {
+			if (type != Type.Baked) {
 				foreach (var s in PrintAsync()) {
 					if (s == null)
 						yield return null;
 					else
-						str = s;
+						stringValue = s;
 				}
 
-				type = Type.BAKED;
+				type = Type.Baked;
 			}
 		}
 
@@ -1013,16 +1079,16 @@ namespace Defective.JSON {
 			}
 
 			switch (type) {
-				case Type.BAKED:
-					builder.Append(str);
+				case Type.Baked:
+					builder.Append(stringValue);
 					break;
-				case Type.STRING:
+				case Type.String:
 					StringifyString(builder);
 					break;
-				case Type.NUMBER:
+				case Type.Number:
 					StringifyNumber(builder);
 					break;
-				case Type.OBJECT:
+				case Type.Object:
 					var fieldCount = list.Count;
 					if (fieldCount <= 0) {
 						StringifyEmptyObject(builder);
@@ -1047,15 +1113,15 @@ namespace Defective.JSON {
 
 					EndStringifyObjectContainer(builder, pretty, depth);
 					break;
-				case Type.ARRAY:
-					var count = list.Count;
-					if (count <= 0) {
+				case Type.Array:
+					var arraySize = list.Count;
+					if (arraySize <= 0) {
 						StringifyEmptyArray(builder);
 						break;
 					}
 
 					BeginStringifyArrayContainer(builder, pretty);
-					for (var index = 0; index < count; index++) {
+					for (var index = 0; index < arraySize; index++) {
 						var jsonObject = list[index];
 						if (jsonObject == null)
 							continue;
@@ -1069,10 +1135,10 @@ namespace Defective.JSON {
 
 					EndStringifyArrayContainer(builder, pretty, depth);
 					break;
-				case Type.BOOL:
+				case Type.Bool:
 					StringifyBool(builder);
 					break;
-				case Type.NULL:
+				case Type.Null:
 					StringifyNull(builder);
 					break;
 			}
@@ -1087,24 +1153,24 @@ namespace Defective.JSON {
 		void Stringify(int depth, StringBuilder builder, bool pretty = false) {
 			depth++;
 			switch (type) {
-				case Type.BAKED:
-					builder.Append(str);
+				case Type.Baked:
+					builder.Append(stringValue);
 					break;
-				case Type.STRING:
+				case Type.String:
 					StringifyString(builder);
 					break;
-				case Type.NUMBER:
+				case Type.Number:
 					StringifyNumber(builder);
 					break;
-				case Type.OBJECT:
-					var count = list.Count;
-					if (count <= 0) {
+				case Type.Object:
+					var fieldCount = list.Count;
+					if (fieldCount <= 0) {
 						StringifyEmptyObject(builder);
 						break;
 					}
 
 					BeginStringifyObjectContainer(builder, pretty);
-					for (var index = 0; index < count; index++) {
+					for (var index = 0; index < fieldCount; index++) {
 						var jsonObject = list[index];
 						if (jsonObject == null)
 							continue;
@@ -1117,7 +1183,7 @@ namespace Defective.JSON {
 
 					EndStringifyObjectContainer(builder, pretty, depth);
 					break;
-				case Type.ARRAY:
+				case Type.Array:
 					if (list.Count <= 0) {
 						StringifyEmptyArray(builder);
 						break;
@@ -1135,10 +1201,10 @@ namespace Defective.JSON {
 
 					EndStringifyArrayContainer(builder, pretty, depth);
 					break;
-				case Type.BOOL:
+				case Type.Bool:
 					StringifyBool(builder);
 					break;
-				case Type.NULL:
+				case Type.Null:
 					StringifyNull(builder);
 					break;
 			}
@@ -1146,7 +1212,7 @@ namespace Defective.JSON {
 
 		void StringifyString(StringBuilder builder)
 		{
-			builder.AppendFormat("\"{0}\"", EscapeString(str));
+			builder.AppendFormat("\"{0}\"", EscapeString(stringValue));
 		}
 
 		void BeginStringifyObjectContainer(StringBuilder builder, bool pretty) {
@@ -1248,34 +1314,36 @@ namespace Defective.JSON {
 		}
 
 		void StringifyNumber(StringBuilder builder) {
-			if (useInt) {
-				builder.Append(i.ToString(CultureInfo.InvariantCulture));
+			if (isInteger) {
+				builder.Append(longValue.ToString(CultureInfo.InvariantCulture));
 			} else {
 #if JSONOBJECT_USE_FLOAT
-				if (float.IsNegativeInfinity(n))
+				if (float.IsNegativeInfinity(floatValue))
 					builder.Append(NegativeInfinity);
-				else if (float.IsInfinity(n))
+				else if (float.IsInfinity(floatValue))
 					builder.Append(Infinity);
-				else if (float.IsNaN(n))
+				else if (float.IsNaN(floatValue))
 					builder.Append(NaN);
-#else
-				if (double.IsNegativeInfinity(n))
-					builder.Append(NegativeInfinity);
-				else if (double.IsInfinity(n))
-					builder.Append(Infinity);
-				else if (double.IsNaN(n))
-					builder.Append(NaN);
-#endif
 				else
-					builder.Append(n.ToString("R", CultureInfo.InvariantCulture));
+					builder.Append(floatValue.ToString("R", CultureInfo.InvariantCulture));
+#else
+				if (double.IsNegativeInfinity(doubleValue))
+					builder.Append(NegativeInfinity);
+				else if (double.IsInfinity(doubleValue))
+					builder.Append(Infinity);
+				else if (double.IsNaN(doubleValue))
+					builder.Append(NaN);
+				else
+					builder.Append(doubleValue.ToString("R", CultureInfo.InvariantCulture));
+#endif
 			}
 		}
 
-		private void StringifyBool(StringBuilder builder) {
-			builder.Append(b ? True : False);
+		void StringifyBool(StringBuilder builder) {
+			builder.Append(boolValue ? True : False);
 		}
 
-		private static void StringifyNull(StringBuilder builder) {
+		static void StringifyNull(StringBuilder builder) {
 			builder.Append(Null);
 		}
 
@@ -1284,11 +1352,13 @@ namespace Defective.JSON {
 			var form = new WWWForm();
 			for (var i = 0; i < jsonObject.list.Count; i++) {
 				var key = i.ToString(CultureInfo.InvariantCulture);
-				if (jsonObject.type == Type.OBJECT)
+				if (jsonObject.type == Type.Object)
 					key = jsonObject.keys[i];
+
 				var val = jsonObject.list[i].ToString();
-				if (jsonObject.list[i].type == Type.STRING)
+				if (jsonObject.list[i].type == Type.String)
 					val = val.Replace("\"", "");
+
 				form.AddField(key, val);
 			}
 
@@ -1297,8 +1367,7 @@ namespace Defective.JSON {
 #endif
 		public JSONObject this[int index] {
 			get {
-				if (list.Count > index) return list[index];
-				return null;
+				return list.Count > index ? list[index] : null;
 			}
 			set {
 				if (list.Count > index)
@@ -1320,7 +1389,7 @@ namespace Defective.JSON {
 		}
 
 		public Dictionary<string, string> ToDictionary() {
-			if (type != Type.OBJECT) {
+			if (type != Type.Object) {
 #if USING_UNITY
 				Debug.Log
 #else
@@ -1335,14 +1404,19 @@ namespace Defective.JSON {
 			for (var index = 0; index < list.Count; index++) {
 				var val = list[index];
 				switch (val.type) {
-					case Type.STRING:
-						result.Add(keys[index], val.str);
+					case Type.String:
+						result.Add(keys[index], val.stringValue);
 						break;
-					case Type.NUMBER:
-						result.Add(keys[index], val.n.ToString(CultureInfo.InvariantCulture));
+					case Type.Number:
+#if JSONOBJECT_USE_FLOAT
+						result.Add(keys[index], val.floatValue.ToString(CultureInfo.InvariantCulture));
+#else
+						result.Add(keys[index], val.doubleValue.ToString(CultureInfo.InvariantCulture));
+#endif
+
 						break;
-					case Type.BOOL:
-						result.Add(keys[index], val.b.ToString(CultureInfo.InvariantCulture));
+					case Type.Bool:
+						result.Add(keys[index], val.boolValue.ToString(CultureInfo.InvariantCulture));
 						break;
 					default:
 #if USING_UNITY
@@ -1363,22 +1437,23 @@ namespace Defective.JSON {
 		}
 
 #if JSONOBJECT_POOLING
-		static bool pool = true;
 		public static void ClearPool() {
-			pool = false;
-			releaseQueue.Clear();
-			pool = true;
+			poolingEnabled = false;
+			poolingEnabled = true;
+			lock (Pool) {
+				Pool.Clear();
+			}
 		}
 
 		~JSONObject() {
-			if(pool && releaseQueue.Count < MAX_POOL_SIZE) {
-				type = Type.NULL;
-				list = null;
-				keys = null;
-				str = "";
-				n = 0;
-				b = false;
-				releaseQueue.Enqueue(this);
+			lock (Pool) {
+				if (!poolingEnabled || isPooled || Pool.Count >= MaxPoolSize)
+					return;
+
+				Clear();
+				isPooled = true;
+				Pool.Enqueue(this);
+				GC.ReRegisterForFinalize(this);
 			}
 		}
 #endif
@@ -1395,8 +1470,7 @@ namespace Defective.JSON {
 	public class JSONObjectEnumerator : IEnumerator {
 		public JSONObject target;
 
-		// Enumerators are positioned before the first element
-		// until the first MoveNext() call.
+		// Enumerators are positioned before the first element until the first MoveNext() call.
 		int position = -1;
 
 		public JSONObjectEnumerator(JSONObject jsonObject) {
@@ -1408,7 +1482,7 @@ namespace Defective.JSON {
 
 		public bool MoveNext() {
 			position++;
-			return (position < target.Count);
+			return position < target.count;
 		}
 
 		public void Reset() {
@@ -1419,9 +1493,10 @@ namespace Defective.JSON {
 			get { return Current; }
 		}
 
+		// ReSharper disable once InconsistentNaming
 		public JSONObject Current {
 			get {
-				if (target.IsArray)
+				if (target.isArray)
 					return target[position];
 
 				var key = target.keys[position];

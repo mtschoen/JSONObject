@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-//#define PERFTEST        //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
+//#define JSONOBJECT_PERFORMANCE_TEST //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
 
 using UnityEngine;
 using UnityEditor;
@@ -28,96 +28,82 @@ using UnityEditor;
 using UnityEngine.Networking;
 #endif
 
-#if PERFTEST && UNITY_5_6_OR_NEWER
+#if JSONOBJECT_PERFORMANCE_TEST && UNITY_5_6_OR_NEWER
 using UnityEngine.Profiling;
 #endif
 
 namespace Defective.JSON {
 	public class JSONChecker : EditorWindow {
-		string JSON = @"{
-	""TestObject"": {
-		""SomeText"": ""Blah"",
-		""SomeObject"": {
-			""SomeNumber"": 42,
-			""SomeFloat"": 13.37,
-			""SomeBool"": true,
-			""SomeNull"": null
-		},
-
-		""SomeEmptyObject"": { },
-		""SomeEmptyArray"": [ ],
-		""EmbeddedObject"": ""{\""field\"":\""Value with \\\""escaped quotes\\\""\""}""
-	}
-}"; //dat string literal...
-
-		string URL = "";
-		JSONObject j;
+		string testJsonString =  "{\r\n\t\"TestObject\":{\r\n\t\t\"SomeText\":\"Blah\",\r\n\t\t\"SomeObject\":{\r\n\t\t\t\"SomeNumber\":42,\r\n\t\t\t\"SomeFloat\":13.37,\r\n\t\t\t\"SomeBool\":true,\r\n\t\t\t\"SomeNull\":null\r\n\t\t},\r\n\t\t\"SomeEmptyObject\":{},\r\n\t\t\"SomeEmptyArray\":[],\r\n\t\t\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"\r\n\t}\r\n}";
+		string url = "";
+		JSONObject jsonObject;
 
 		[MenuItem("Window/JSONChecker")]
 		static void Init() {
-			GetWindow(typeof(JSONChecker));
+			GetWindow(typeof(JSONChecker)).Show();
 		}
 
 		void OnGUI() {
-			JSON = EditorGUILayout.TextArea(JSON);
-			GUI.enabled = !string.IsNullOrEmpty(JSON);
+			testJsonString = EditorGUILayout.TextArea(testJsonString);
+			GUI.enabled = !string.IsNullOrEmpty(testJsonString);
 			if (GUILayout.Button("Check JSON")) {
-#if PERFTEST
+#if JSONOBJECT_PERFORMANCE_TEST
 				Profiler.BeginSample("JSONParse");
-				j = JSONObject.Create(JSON);
+				jsonObject = JSONObject.Create(testJsonString);
 				Profiler.EndSample();
 				Profiler.BeginSample("JSONStringify");
-				j.ToString(true);
+				jsonObject.ToString(true);
 				Profiler.EndSample();
 #else
-				j = JSONObject.Create(JSON);
+				jsonObject = JSONObject.Create(testJsonString);
 #endif
-				Debug.Log(j.ToString(true));
+
+				Debug.Log(jsonObject.ToString(true));
 			}
 
 			EditorGUILayout.Separator();
-			URL = EditorGUILayout.TextField("URL", URL);
+			url = EditorGUILayout.TextField("URL", url);
 			if (GUILayout.Button("Get JSON")) {
-				Debug.Log(URL);
+				Debug.Log(url);
 #if UNITY_2017_1_OR_NEWER
-				var test = new UnityWebRequest(URL);
+				var test = new UnityWebRequest(url);
 
 #if UNITY_2017_2_OR_NEWER
 				test.SendWebRequest();
 #else
-			test.Send();
+				test.Send();
 #endif
+
 #if UNITY_2020_1_OR_NEWER
-			while (!test.isDone && test.result != UnityWebRequest.Result.ConnectionError) { }
+				while (!test.isDone && test.result != UnityWebRequest.Result.ConnectionError) { }
 #else
-				while (!test.isDone && !test.isNetworkError) {
-				}
+				while (!test.isDone && !test.isNetworkError) { }
 #endif
+
 #else
-			var test = new WWW(URL);
- 			while (!test.isDone) ;
+				var test = new WWW(url);
+ 				while (!test.isDone) { }
 #endif
+
 				if (!string.IsNullOrEmpty(test.error)) {
 					Debug.Log(test.error);
 				} else {
 #if UNITY_2017_1_OR_NEWER
 					var text = test.downloadHandler.text;
 #else
-				var text = test.text;
+					var text = test.text;
 #endif
+
 					Debug.Log(text);
-					j = new JSONObject(text);
-					Debug.Log(j.ToString(true));
+					jsonObject = new JSONObject(text);
+					Debug.Log(jsonObject.ToString(true));
 				}
 			}
 
-			if (j) {
-				//Debug.Log(System.GC.GetTotalMemory(false) + "");
-				if (j.type == JSONObject.Type.NULL)
-					GUILayout.Label("JSON fail:\n" + j.ToString(true));
-				else
-					GUILayout.Label("JSON success:\n" + j.ToString(true));
-
+			if (jsonObject) {
+				GUILayout.Label(jsonObject.type == JSONObject.Type.Null
+					? string.Format("JSON fail:\n{0}", jsonObject.ToString(true))
+					: string.Format("JSON success:\n{0}", jsonObject.ToString(true)));
 			}
 		}
 	}

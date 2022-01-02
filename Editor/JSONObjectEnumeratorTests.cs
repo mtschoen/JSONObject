@@ -36,8 +36,8 @@ namespace Defective.JSON.Tests {
 			}
 
 			foreach (var element in jsonObject) {
-				Assert.That(element.type, Is.EqualTo(JSONObject.Type.NUMBER));
-				Assert.That(element.n, Is.EqualTo(42));
+				Assert.That(element.type, Is.EqualTo(JSONObject.Type.Number));
+				Assert.That(element.longValue, Is.EqualTo(42));
 			}
 		}
 
@@ -49,8 +49,8 @@ namespace Defective.JSON.Tests {
 			}
 
 			foreach (var element in jsonObject) {
-				Assert.That(element.type, Is.EqualTo(JSONObject.Type.NUMBER));
-				Assert.That(element.n, Is.EqualTo(42));
+				Assert.That(element.type, Is.EqualTo(JSONObject.Type.Number));
+				Assert.That(element.longValue, Is.EqualTo(42));
 			}
 		}
 

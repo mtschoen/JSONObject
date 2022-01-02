@@ -53,7 +53,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(42)]
 		public void ParseLong(long value) {
 			var jsonObject = new JSONObject(string.Format(TestJsonFormat, value));
-			Assert.That(jsonObject[TestFieldName].n, Is.EqualTo(value));
+			Assert.That(jsonObject[TestFieldName].longValue, Is.EqualTo(value));
 		}
 
 		[TestCase(float.NegativeInfinity)]
@@ -65,7 +65,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(42)]
 		public void ParseFloat(float value) {
 			var jsonObject = new JSONObject(string.Format(TestJsonFormatFloat, value));
-			Assert.That(jsonObject[TestFieldName].f, Is.EqualTo(value));
+			Assert.That(jsonObject[TestFieldName].floatValue, Is.EqualTo(value));
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -81,12 +81,10 @@ namespace Defective.JSON.Tests {
 			var jsonObject = new JSONObject(string.Format(TestJsonFormatFloat, value));
 
 #if JSONOBJECT_USE_FLOAT
-			var expected = (float) value;
+			Assert.That(jsonObject[TestFieldName].floatValue, Is.EqualTo((float) value));
 #else
-			var expected = value;
+			Assert.That(jsonObject[TestFieldName].doubleValue, Is.EqualTo(value));
 #endif
-
-			Assert.That(jsonObject[TestFieldName].n, Is.EqualTo(expected));
 		}
 
 		[TestCase(long.MaxValue)]
