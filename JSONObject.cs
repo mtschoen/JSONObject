@@ -20,11 +20,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#define PRETTY		//Comment out when you no longer need to read JSON to disable pretty Print system-wide
+#define PRETTY      //Comment out when you no longer need to read JSON to disable pretty Print system-wide
 //#define JSONOBJECT_USE_FLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
 //#define POOLING	//Currently using a build setting for this one (also it's experimental)
 
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#define USING_UNITY
+#endif
+
+#if USING_UNITY
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 #endif
@@ -47,6 +51,9 @@ namespace Defective.JSON {
 		const string NaN = "NaN";
 		const string Newline = "\r\n";
 		const string Tab = "\t";
+		const string True = "true";
+		const string False = "false";
+		const string Null = "null";
 
 		const float MaxFrameTime = 0.008f;
 		static readonly Stopwatch PrintWatch = new Stopwatch();
@@ -332,10 +339,7 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
-		public JSONObject() {
-		}
-
-#region PARSE
+		public JSONObject() { }
 
 		public JSONObject(string str, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
 			//create a new JSONObject from a string (this will also create any children, and parse the whole string)
@@ -348,7 +352,7 @@ namespace Defective.JSON {
 				if (strict) {
 					if (inputString[0] != '[' && inputString[0] != '{') {
 						type = Type.NULL;
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#if USING_UNITY
 						Debug.LogWarning
 #else
 						Debug.WriteLine
@@ -360,22 +364,22 @@ namespace Defective.JSON {
 
 				if (inputString.Length > 0) {
 #if UNITY_WP8 || UNITY_WSA
-					if (inputString == "true") {
+					if (inputString == True) {
 						type = Type.BOOL;
 						b = true;
-					} else if (inputString == "false") {
+					} else if (inputString == False) {
 						type = Type.BOOL;
 						b = false;
-					} else if (inputString == "null") {
+					} else if (inputString == Null) {
 						type = Type.NULL;
 #else
-					if (string.Compare(inputString, "true", true, CultureInfo.InvariantCulture) == 0) {
+					if (string.Compare(inputString, True, true, CultureInfo.InvariantCulture) == 0) {
 						type = Type.BOOL;
 						b = true;
-					} else if (string.Compare(inputString, "false", true, CultureInfo.InvariantCulture) == 0) {
+					} else if (string.Compare(inputString, False, true, CultureInfo.InvariantCulture) == 0) {
 						type = Type.BOOL;
 						b = false;
-					} else if (string.Compare(inputString, "null", true, CultureInfo.InvariantCulture) == 0) {
+					} else if (string.Compare(inputString, Null, true, CultureInfo.InvariantCulture) == 0) {
 						type = Type.NULL;
 #endif
 #if JSONOBJECT_USE_FLOAT
@@ -427,25 +431,25 @@ namespace Defective.JSON {
 							default:
 								try {
 #if JSONOBJECT_USE_FLOAT
-									n = System.Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
+									n = Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
 #else
-									n = System.Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
+									n = Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
 #endif
 									if (!inputString.Contains(".")) {
-										i = System.Convert.ToInt64(inputString, CultureInfo.InvariantCulture);
+										i = Convert.ToInt64(inputString, CultureInfo.InvariantCulture);
 										useInt = true;
 									}
 
 									type = Type.NUMBER;
-								} catch (System.FormatException) {
+								} catch (FormatException) {
 									type = Type.NULL;
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#if USING_UNITY
 									Debug.LogWarning
 #else
 									Debug.WriteLine
 #endif
 										("improper JSON formatting:" + inputString);
-								} catch (System.OverflowException) {
+								} catch (OverflowException) {
 									type = Type.NUMBER;
 									n = inputString.StartsWith("-")
 										?
@@ -466,7 +470,7 @@ namespace Defective.JSON {
 						var inProp = false;
 						var depth = 0;
 						while (++offset < inputString.Length) {
-							if (System.Array.IndexOf(Whitespace, inputString[offset]) > -1)
+							if (Array.IndexOf(Whitespace, inputString[offset]) > -1)
 								continue;
 
 							if (inputString[offset] == '\\') {
@@ -523,8 +527,6 @@ namespace Defective.JSON {
 				} else type = Type.NULL;
 			} else type = Type.NULL; //If the string is missing, this is a null
 		}
-
-#endregion
 
 		public bool IsNumber {
 			get { return type == Type.NUMBER; }
@@ -911,7 +913,7 @@ namespace Defective.JSON {
 				}
 			} else if (left.type == Type.ARRAY && right.type == Type.ARRAY) {
 				if (right.Count > left.Count) {
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#if USING_UNITY
 					Debug.LogError
 #else
 					Debug.WriteLine
@@ -1267,14 +1269,14 @@ namespace Defective.JSON {
 		}
 
 		private void StringifyBool(StringBuilder builder) {
-			builder.Append(b ? "true" : "false");
+			builder.Append(b ? True : False);
 		}
 
 		private static void StringifyNull(StringBuilder builder) {
-			builder.Append("null");
+			builder.Append(Null);
 		}
 
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#if USING_UNITY
 		public static implicit operator WWWForm(JSONObject jsonObject) {
 			var form = new WWWForm();
 			for (var i = 0; i < jsonObject.list.Count; i++) {
@@ -1316,7 +1318,7 @@ namespace Defective.JSON {
 
 		public Dictionary<string, string> ToDictionary() {
 			if (type != Type.OBJECT) {
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#if USING_UNITY
 				Debug.Log
 #else
 				Debug.WriteLine
@@ -1340,10 +1342,10 @@ namespace Defective.JSON {
 						result.Add(keys[index], val.b.ToString(CultureInfo.InvariantCulture));
 						break;
 					default:
-#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#if USING_UNITY
 						Debug.LogWarning
 #else
-							Debug.WriteLine
+						Debug.WriteLine
 #endif
 							("Omitting object: " + keys[index] + " in dictionary conversion");
 						break;
