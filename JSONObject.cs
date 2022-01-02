@@ -20,9 +20,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#define PRETTY      //Comment out when you no longer need to read JSON to disable pretty Print system-wide
-//#define JSONOBJECT_USE_FLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
-//#define POOLING	//Currently using a build setting for this one (also it's experimental)
+//#define JSONOBJECT_DISABLE_PRETTY_PRINT // Use when you no longer need to read JSON to disable pretty Print system-wide
+//#define JSONOBJECT_USE_FLOAT //Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
+//#define JSONOBJECT_POOLING //Create JSONObjects from a pool and prevent finalization by returning objects to the pool
 
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 #define USING_UNITY
@@ -41,16 +41,19 @@ using System.Globalization;
 
 namespace Defective.JSON {
 	public class JSONObject : IEnumerable {
-#if POOLING
+#if JSONOBJECT_POOLING
 		const int MAX_POOL_SIZE = 10000;
 		public static Queue<JSONObject> releaseQueue = new Queue<JSONObject>();
+#endif
+
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
+		const string Newline = "\r\n";
+		const string Tab = "\t";
 #endif
 
 		const string Infinity = "Infinity";
 		const string NegativeInfinity = "-Infinity";
 		const string NaN = "NaN";
-		const string Newline = "\r\n";
-		const string Tab = "\t";
 		const string True = "true";
 		const string False = "false";
 		const string Null = "null";
@@ -211,7 +214,7 @@ namespace Defective.JSON {
 		}
 
 		public static JSONObject Create() {
-#if POOLING
+#if JSONOBJECT_POOLING
 			JSONObject result = null;
 			while(result == null && releaseQueue.Count > 0) {
 				result = releaseQueue.Dequeue();
@@ -1149,7 +1152,7 @@ namespace Defective.JSON {
 		void BeginStringifyObjectContainer(StringBuilder builder, bool pretty) {
 			builder.Append("{");
 
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				builder.Append(Newline);
 #endif
@@ -1160,7 +1163,7 @@ namespace Defective.JSON {
 		}
 
 		void BeginStringifyObjectField(StringBuilder builder, bool pretty, int depth, string key) {
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				for (var j = 0; j < depth; j++)
 					builder.Append(Tab); //for a bit more readability
@@ -1171,21 +1174,21 @@ namespace Defective.JSON {
 
 		void EndStringifyObjectField(StringBuilder builder, bool pretty) {
 			builder.Append(",");
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				builder.Append(Newline);
 #endif
 		}
 
 		void EndStringifyObjectContainer(StringBuilder builder, bool pretty, int depth) {
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				builder.Length -= 3;
 			else
 #endif
 				builder.Length--;
 
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty && list.Count > 0) {
 				builder.Append(Newline);
 				for (var j = 0; j < depth - 1; j++)
@@ -1202,7 +1205,7 @@ namespace Defective.JSON {
 
 		void BeginStringifyArrayContainer(StringBuilder builder, bool pretty) {
 			builder.Append("[");
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				builder.Append(Newline);
 #endif
@@ -1210,7 +1213,7 @@ namespace Defective.JSON {
 		}
 
 		void BeginStringifyArrayElement(StringBuilder builder, bool pretty, int depth) {
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				for (var j = 0; j < depth; j++)
 					builder.Append(Tab); //for a bit more readability
@@ -1219,21 +1222,21 @@ namespace Defective.JSON {
 
 		void EndStringifyArrayElement(StringBuilder builder, bool pretty) {
 			builder.Append(",");
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				builder.Append(Newline);
 #endif
 		}
 
 		void EndStringifyArrayContainer(StringBuilder builder, bool pretty, int depth) {
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty)
 				builder.Length -= 3;
 			else
 #endif
 				builder.Length--;
 
-#if PRETTY
+#if !JSONOBJECT_DISABLE_PRETTY_PRINT
 			if (pretty && list.Count > 0) {
 				builder.Append(Newline);
 				for (var j = 0; j < depth - 1; j++)
@@ -1359,7 +1362,7 @@ namespace Defective.JSON {
 			return o != null;
 		}
 
-#if POOLING
+#if JSONOBJECT_POOLING
 		static bool pool = true;
 		public static void ClearPool() {
 			pool = false;
