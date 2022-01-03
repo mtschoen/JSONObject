@@ -43,7 +43,7 @@ using Debug = UnityEngine.Debug;
 namespace Defective.JSON {
 	public class JSONObject : IEnumerable {
 #if JSONOBJECT_POOLING
-		const int MaxPoolSize = 10000;
+		const int MaxPoolSize = 100000;
 		static readonly Queue<JSONObject> Pool = new Queue<JSONObject>();
 		static bool poolingEnabled = true;
 
@@ -76,13 +76,15 @@ namespace Defective.JSON {
 			Baked
 		}
 
-		struct ParseResult {
+		public struct ParseResult {
 			public readonly JSONObject result;
 			public readonly int offset;
+			public readonly bool pause;
 
-			public ParseResult(JSONObject result, int offset) {
+			public ParseResult(JSONObject result, int offset, bool pause) {
 				this.result = result;
 				this.offset = offset;
+				this.pause = pause;
 			}
 		}
 
@@ -412,16 +414,19 @@ namespace Defective.JSON {
 		/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
 		/// parse "a string" into a string-type </param>
 		/// <returns>A JSONObject containing the parsed data</returns>
-		public static IEnumerable<JSONObject> CreateAsync(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -2, bool storeExcessLevels = false,
+		public static IEnumerable<ParseResult> CreateAsync(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -2, bool storeExcessLevels = false,
 			bool strict = false) {
 			var jsonObject = Create();
 			PrintWatch.Reset();
 			PrintWatch.Start();
 			foreach (var e in ParseAsync(jsonString, offset, endOffset, jsonObject, false, true, strict)) {
-				yield return e.result;
+				if (e.pause)
+					yield return e;
+
+				offset = e.offset;
 			}
 
-			yield return jsonObject;
+			yield return new ParseResult(jsonObject, offset, false);
 		}
 
 		public JSONObject() { }
@@ -563,7 +568,7 @@ namespace Defective.JSON {
 			while (offset < endOffset) {
 				if (PrintWatch.Elapsed.TotalSeconds > MaxFrameTime) {
 					PrintWatch.Reset();
-					yield return new ParseResult(container, offset);
+					yield return new ParseResult(container, offset, true);
 					PrintWatch.Start();
 				}
 
@@ -592,7 +597,9 @@ namespace Defective.JSON {
 
 						newContainer.type = Type.Object;
 						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, false, false, false)) {
-							yield return e;
+							if (e.pause)
+								yield return e;
+
 							offset = e.offset;
 						}
 
@@ -610,42 +617,44 @@ namespace Defective.JSON {
 
 						newContainer.type = Type.Array;
 						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, true, false, false)) {
-							yield return e;
+							if (e.pause)
+								yield return e;
+
 							offset = e.offset;
 						}
 
 						break;
 					case '}':
 						if (!ParseObjectEnd(inputString, openQuote, isValue, container, startOffset, lastValidOffset)) {
-							yield return new ParseResult(container, offset);
+							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case ']':
 						if (!ParseArrayEnd(inputString, openQuote, isEmptyArray, isValue, container, startOffset, lastValidOffset)) {
-							yield return new ParseResult(container, offset);
+							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case '"':
 						if (!ParseQuote(inputString, ref openQuote, ref isValue, container, offset, ref quoteStart, ref quoteEnd)) {
-							yield return new ParseResult(container, offset);
+							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case ':':
 						if (!ParseColon(inputString, openQuote, ref isValue, container, ref startOffset, offset, quoteStart, quoteEnd)) {
-							yield return new ParseResult(container, offset);
+							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case ',':
 						if (!ParseComma(inputString, openQuote, ref isValue, container, ref startOffset, offset, lastValidOffset)) {
-							yield return new ParseResult(container, offset);
+							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
@@ -655,7 +664,7 @@ namespace Defective.JSON {
 				lastValidOffset = offset - 1;
 			}
 
-			yield return new ParseResult(container, offset);
+			yield return new ParseResult(container, offset, false);
 		}
 
 		static void SafeAddChild(JSONObject container, JSONObject child) {
@@ -1315,8 +1324,12 @@ namespace Defective.JSON {
 
 		public string Print(bool pretty = false) {
 			var builder = new StringBuilder();
-			Stringify(0, builder, pretty);
+			Print(builder, pretty);
 			return builder.ToString();
+		}
+
+		public void Print(StringBuilder builder, bool pretty = false) {
+			Stringify(0, builder, pretty);
 		}
 
 		static string EscapeString(string input) {
@@ -1341,14 +1354,23 @@ namespace Defective.JSON {
 
 		public IEnumerable<string> PrintAsync(bool pretty = false) {
 			var builder = new StringBuilder();
-			PrintWatch.Reset();
-			PrintWatch.Start();
-			var enumerator = StringifyAsync(0, builder, pretty).GetEnumerator();
-			while (enumerator.MoveNext()){
-				yield return null;
+			foreach (var pause in PrintAsync(builder, pretty)) {
+				if (pause)
+					yield return null;
 			}
 
 			yield return builder.ToString();
+		}
+
+		public IEnumerable<bool> PrintAsync(StringBuilder builder, bool pretty = false) {
+			PrintWatch.Reset();
+			PrintWatch.Start();
+			using (var enumerator = StringifyAsync(0, builder, pretty).GetEnumerator()) {
+				while (enumerator.MoveNext()) {
+					if (enumerator.Current)
+						yield return true;
+				}
+			}
 		}
 
 		/// <summary>
@@ -1358,10 +1380,10 @@ namespace Defective.JSON {
 		/// <param name="builder">The StringBuilder used to build the string</param>
 		/// <param name="pretty">Whether this string should be "pretty" and include whitespace for readability</param>
 		/// <returns>An enumerator for this function</returns>
-		IEnumerable StringifyAsync(int depth, StringBuilder builder, bool pretty = false) {
+		IEnumerable<bool> StringifyAsync(int depth, StringBuilder builder, bool pretty = false) {
 			if (PrintWatch.Elapsed.TotalSeconds > MaxFrameTime) {
 				PrintWatch.Reset();
-				yield return null;
+				yield return true;
 				PrintWatch.Start();
 			}
 
@@ -1392,8 +1414,10 @@ namespace Defective.JSON {
 
 						var key = keys[index];
 						BeginStringifyObjectField(builder, pretty, depth, key);
-						foreach (IEnumerable e in jsonObject.StringifyAsync(depth, builder, pretty))
-							yield return e;
+						foreach (var pause in jsonObject.StringifyAsync(depth, builder, pretty)) {
+							if (pause)
+								yield return true;
+						}
 
 						EndStringifyObjectField(builder, pretty);
 					}
@@ -1414,8 +1438,10 @@ namespace Defective.JSON {
 							continue;
 
 						BeginStringifyArrayElement(builder, pretty, depth);
-						foreach (IEnumerable e in list[index].StringifyAsync(depth, builder, pretty))
-							yield return e;
+						foreach (var pause in list[index].StringifyAsync(depth, builder, pretty)) {
+							if (pause)
+								yield return true;
+						}
 
 						EndStringifyArrayElement(builder, pretty);
 					}
@@ -1721,7 +1747,7 @@ namespace Defective.JSON {
 #else
 						Debug.WriteLine
 #endif
-							("Omitting object: " + keys[index] + " in dictionary conversion");
+							(string.Format("Omitting object: {0} in dictionary conversion", keys[index]));
 						break;
 				}
 			}

@@ -25,7 +25,6 @@ THE SOFTWARE.
 #if UNITY_5_6_OR_NEWER && JSONOBJECT_TESTS
 using System.Text;
 using NUnit.Framework;
-using UnityEngine;
 using TestStrings = Defective.JSON.Tests.JSONObjectTestStrings;
 
 namespace Defective.JSON.Tests {
@@ -40,10 +39,20 @@ namespace Defective.JSON.Tests {
 
 		static void ValidateJsonString(string input, string expected, bool pretty = false) {
 			using (var parser = JSONObject.CreateAsync(input).GetEnumerator()) {
-				while (parser.MoveNext()) { }
-				var jsonObject = parser.Current;
-				Assert.IsNotNull(jsonObject);
-				ValidateJsonObject(jsonObject, expected, pretty);
+				var offset = 0;
+				var inputLength = input.Length;
+				while (parser.MoveNext()) {
+					var newOffset = parser.Current.offset;
+					Assert.That(newOffset, Is.GreaterThan(offset));
+					offset = newOffset;
+
+					// Progress can be tracked using offset / total length
+					//Debug.Log(string.Format("Progress: {0:f2}%", (float)newOffset * 100 / inputLength));
+				}
+
+				var result = parser.Current;
+				Assert.That(result.offset, Is.EqualTo(inputLength));
+				ValidateJsonObject(result.result, expected, pretty);
 			}
 		}
 
@@ -180,8 +189,27 @@ namespace Defective.JSON.Tests {
 			stringBuilder.Append("]");
 			var jsonText = stringBuilder.ToString();
 
+			var inputLength = jsonText.Length;
 			for (var i = 0; i < 5; i++) {
-				ValidateJsonString(jsonText, jsonText);
+				using (var parser = JSONObject.CreateAsync(jsonText).GetEnumerator()) {
+					var offset = 0;
+					while (parser.MoveNext()) {
+						var newOffset = parser.Current.offset;
+						Assert.That(newOffset, Is.GreaterThan(offset));
+						offset = newOffset;
+					}
+
+					var result = parser.Current;
+					Assert.That(result.offset, Is.EqualTo(inputLength));
+					var jsonObject = result.result;
+					Assert.IsNotNull(jsonObject);
+
+					stringBuilder.Length = 0;
+					using (var printer = jsonObject.PrintAsync(stringBuilder).GetEnumerator()) {
+						while (printer.MoveNext()) { }
+						Assert.That(stringBuilder.ToString(), Is.EqualTo(jsonText));
+					}
+				}
 			}
 		}
 

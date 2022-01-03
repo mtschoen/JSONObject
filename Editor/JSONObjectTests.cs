@@ -197,7 +197,7 @@ namespace Defective.JSON.Tests {
 			for (var i = 0; i < 500; i++) {
 				stringBuilder.Append('{');
 				for (var j = 0; j < 100; j++) {
-					stringBuilder.Append(string.Format("\"field{0}\":{1},", j, j));
+					stringBuilder.AppendFormat("\"field{0}\":{1},", j, j);
 				}
 
 				stringBuilder.Length--;
@@ -210,7 +210,10 @@ namespace Defective.JSON.Tests {
 
 			// Repeat multiple times to stress test pooling
 			for (var i = 0; i < 5; i++) {
-				ValidateJsonString(jsonText);
+				var jsonObject = JSONObject.Create(jsonText);
+				stringBuilder.Length = 0;
+				jsonObject.Print(stringBuilder);
+				Assert.That(stringBuilder.ToString(), Is.EqualTo(jsonText));
 			}
 		}
 
