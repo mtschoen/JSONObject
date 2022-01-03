@@ -63,6 +63,13 @@ namespace Defective.JSON.Tests {
 		static void EnumerateJsonObject(JSONObject jsonObject) {
 			foreach (var unused in jsonObject) { }
 		}
+
+#if JSONOBJECT_POOLING
+		[OneTimeTearDown]
+		public void OneTimeTearDown() {
+			JSONObject.ClearPool();
+		}
+#endif
 	}
 }
 #endif

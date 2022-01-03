@@ -395,6 +395,28 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
+		/// <summary>
+		/// Create a JSONObject (using pooling if enabled) using a string containing valid JSON
+		/// </summary>
+		/// <param name="jsonString">A string containing valid JSON to be parsed into objects</param>
+		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
+		/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
+		/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
+		/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
+		/// parse "a string" into a string-type </param>
+		/// <returns>A JSONObject containing the parsed data</returns>
+		public static IEnumerable<JSONObject> CreateAsync(string jsonString, int maxDepth = -2, bool storeExcessLevels = false,
+			bool strict = false) {
+			var jsonObject = Create();
+			PrintWatch.Reset();
+			PrintWatch.Start();
+			foreach (var e in jsonObject.ParseAsync(jsonString, maxDepth, storeExcessLevels, strict)) {
+				yield return e;
+			}
+
+			yield return jsonObject;
+		}
+
 		public JSONObject() { }
 
 		/// <summary>
@@ -411,182 +433,248 @@ namespace Defective.JSON {
 		}
 
 		void Parse(string inputString, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
-			if (!string.IsNullOrEmpty(inputString)) {
-				inputString = inputString.Trim(Whitespace);
-				if (strict) {
-					if (inputString[0] != '[' && inputString[0] != '{') {
-						type = Type.Null;
+			if (!BeginParse(inputString, strict))
+				return;
+
+			var tokenTmp = 1;
+			var inputStringLength = inputString.Length;
+			var openQuote = false;
+			var inProp = false;
+			string propName = null;
+			var depth = 0;
+			var offset = 0;
+			while (++offset < inputStringLength) {
+				string inner;
+				if (!ContinueParse(inputString, maxDepth, storeExcessLevels, ref offset, ref propName, ref openQuote, ref inProp, ref depth, ref tokenTmp, out inner))
+					continue;
+
+				list.Add(Create(inner, maxDepth < -1 ? -2 : maxDepth - 1, storeExcessLevels));
+			}
+		}
+
+		bool BeginParse(string inputString, bool strict) {
+			if (string.IsNullOrEmpty(inputString)) {
+				type = Type.Null; //If the string is missing, this is a null
+				return false;
+			}
+
+			inputString = inputString.Trim(Whitespace);
+			var firstCharacter = inputString[0];
+			if (strict) {
+				if (firstCharacter != '[' && firstCharacter != '{') {
+					type = Type.Null;
 #if USING_UNITY
-						Debug.LogWarning
+					Debug.LogWarning
 #else
-						Debug.WriteLine
+					Debug.WriteLine
 #endif
-							("Improper (strict) JSON formatting.  First character must be [ or {");
-						return;
-					}
+						("Improper (strict) JSON formatting.  First character must be [ or {");
+					return false;
+				}
+			}
+
+#if UNITY_WP8 || UNITY_WSA
+			if (inputString == True) {
+				type = Type.BOOL;
+				b = true;
+			} else if (inputString == False) {
+				type = Type.BOOL;
+				b = false;
+			} else if (inputString == Null) {
+				type = Type.NULL;
+#else
+			if (string.Compare(inputString, True, true, CultureInfo.InvariantCulture) == 0) {
+				type = Type.Bool;
+				boolValue = true;
+			} else if (string.Compare(inputString, False, true, CultureInfo.InvariantCulture) == 0) {
+				type = Type.Bool;
+				boolValue = false;
+			} else if (string.Compare(inputString, Null, true, CultureInfo.InvariantCulture) == 0) {
+				type = Type.Null;
+#endif
+#if JSONOBJECT_USE_FLOAT
+			} else if (inputString == Infinity) {
+				type = Type.Number;
+				floatValue = float.PositiveInfinity;
+			} else if (inputString == NegativeInfinity) {
+				type = Type.Number;
+				floatValue = float.NegativeInfinity;
+			} else if (inputString == NaN) {
+				type = Type.Number;
+				floatValue = float.NaN;
+#else
+			} else if (inputString == Infinity) {
+				type = Type.Number;
+				doubleValue = double.PositiveInfinity;
+			} else if (inputString == NegativeInfinity) {
+				type = Type.Number;
+				doubleValue = double.NegativeInfinity;
+			} else if (inputString == NaN) {
+				type = Type.Number;
+				doubleValue = double.NaN;
+#endif
+			} else if (firstCharacter == '"') {
+				type = Type.String;
+				stringValue = UnEscapeString(inputString.Substring(1, inputString.Length - 2));
+			} else {
+				/*
+				 * Checking for the following formatting (www.json.org)
+				 * object - {"field1":value,"field2":value}
+				 * array - [value,value,value]
+				 * value - string	- "string"
+				 *		 - number	- 0.0
+				 *		 - bool		- true -or- false
+				 *		 - null		- null
+				 */
+				
+				switch (firstCharacter) {
+					case '{':
+						type = Type.Object;
+						keys = new List<string>();
+						list = new List<JSONObject>();
+						break;
+					case '[':
+						type = Type.Array;
+						list = new List<JSONObject>();
+						break;
+					default:
+						try {
+#if JSONOBJECT_USE_FLOAT
+							floatValue = Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
+#else
+							doubleValue = Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
+#endif
+							if (!inputString.Contains(".")) {
+								longValue = Convert.ToInt64(inputString, CultureInfo.InvariantCulture);
+								isInteger = true;
+							}
+
+							type = Type.Number;
+						} catch (FormatException) {
+							type = Type.Null;
+#if USING_UNITY
+							Debug.LogWarning
+#else
+							Debug.WriteLine
+#endif
+								(string.Format("Improper JSON formatting:{0}", inputString));
+						} catch (OverflowException) {
+							type = Type.Number;
+
+#if JSONOBJECT_USE_FLOAT
+							floatValue = inputString.StartsWith("-") ? float.NegativeInfinity : float.PositiveInfinity;
+#else
+							doubleValue = inputString.StartsWith("-") ? double.NegativeInfinity : double.PositiveInfinity;
+#endif
+						}
+
+						return false;
 				}
 
-				if (inputString.Length > 0) {
-#if UNITY_WP8 || UNITY_WSA
-					if (inputString == True) {
-						type = Type.BOOL;
-						b = true;
-					} else if (inputString == False) {
-						type = Type.BOOL;
-						b = false;
-					} else if (inputString == Null) {
-						type = Type.NULL;
-#else
-					if (string.Compare(inputString, True, true, CultureInfo.InvariantCulture) == 0) {
-						type = Type.Bool;
-						boolValue = true;
-					} else if (string.Compare(inputString, False, true, CultureInfo.InvariantCulture) == 0) {
-						type = Type.Bool;
-						boolValue = false;
-					} else if (string.Compare(inputString, Null, true, CultureInfo.InvariantCulture) == 0) {
-						type = Type.Null;
-#endif
-#if JSONOBJECT_USE_FLOAT
-					} else if (inputString == Infinity) {
-						type = Type.Number;
-						floatValue = float.PositiveInfinity;
-					} else if (inputString == NegativeInfinity) {
-						type = Type.Number;
-						floatValue = float.NegativeInfinity;
-					} else if (inputString == NaN) {
-						type = Type.Number;
-						floatValue = float.NaN;
-#else
-					} else if(inputString == Infinity) {
-						type = Type.Number;
-						doubleValue = double.PositiveInfinity;
-					} else if(inputString == NegativeInfinity) {
-						type = Type.Number;
-						doubleValue = double.NegativeInfinity;
-					} else if(inputString == NaN) {
-						type = Type.Number;
-						doubleValue = double.NaN;
-#endif
-					} else if (inputString[0] == '"') {
-						type = Type.String;
-						stringValue = UnEscapeString(inputString.Substring(1, inputString.Length - 2));
-					} else {
-						var tokenTmp = 1;
-						/*
-						 * Checking for the following formatting (www.json.org)
-						 * object - {"field1":value,"field2":value}
-						 * array - [value,value,value]
-						 * value - string	- "string"
-						 *		 - number	- 0.0
-						 *		 - bool		- true -or- false
-						 *		 - null		- null
-						 */
-						var offset = 0;
-						switch (inputString[offset]) {
-							case '{':
-								type = Type.Object;
-								keys = new List<string>();
-								list = new List<JSONObject>();
-								break;
-							case '[':
-								type = Type.Array;
-								list = new List<JSONObject>();
-								break;
-							default:
-								try {
-#if JSONOBJECT_USE_FLOAT
-									floatValue = Convert.ToSingle(inputString, CultureInfo.InvariantCulture);
-#else
-									doubleValue = Convert.ToDouble(inputString, CultureInfo.InvariantCulture);
-#endif
-									if (!inputString.Contains(".")) {
-										longValue = Convert.ToInt64(inputString, CultureInfo.InvariantCulture);
-										isInteger = true;
-									}
+				return true;
+			}
 
-									type = Type.Number;
-								} catch (FormatException) {
-									type = Type.Null;
-#if USING_UNITY
-									Debug.LogWarning
-#else
-									Debug.WriteLine
-#endif
-										(string.Format("Improper JSON formatting:{0}", inputString));
-								} catch (OverflowException) {
-									type = Type.Number;
+			return false;
+		}
 
-#if JSONOBJECT_USE_FLOAT
-									floatValue = inputString.StartsWith("-") ? float.NegativeInfinity : float.PositiveInfinity;
-#else
-									doubleValue = inputString.StartsWith("-") ? double.NegativeInfinity : double.PositiveInfinity;
-#endif
-								}
+		bool ContinueParse(string inputString, int maxDepth, bool storeExcessLevels, ref int offset, ref string propName,
+			ref bool openQuote, ref bool inProp, ref int depth, ref int tokenTmp, out string inner) {
+			inner = null;
+			var nextCharacter = inputString[offset];
+			if (Array.IndexOf(Whitespace, nextCharacter) > -1)
+				return false;
 
-								return;
-						}
+			if (nextCharacter == '\\') {
+				offset += 1;
+				return false;
+			}
 
-						var propName = "";
-						var openQuote = false;
-						var inProp = false;
-						var depth = 0;
-						while (++offset < inputString.Length) {
-							if (Array.IndexOf(Whitespace, inputString[offset]) > -1)
-								continue;
+			if (nextCharacter == '"') {
+				if (openQuote) {
+					if (!inProp && depth == 0 && type == Type.Object)
+						propName = inputString.Substring(tokenTmp + 1, offset - tokenTmp - 1);
+					openQuote = false;
+				} else {
+					if (depth == 0 && type == Type.Object)
+						tokenTmp = offset;
+					openQuote = true;
+				}
+			}
 
-							if (inputString[offset] == '\\') {
-								offset += 1;
-								continue;
-							}
+			if (openQuote)
+				return false;
 
-							if (inputString[offset] == '"') {
-								if (openQuote) {
-									if (!inProp && depth == 0 && type == Type.Object)
-										propName = inputString.Substring(tokenTmp + 1, offset - tokenTmp - 1);
-									openQuote = false;
-								} else {
-									if (depth == 0 && type == Type.Object)
-										tokenTmp = offset;
-									openQuote = true;
-								}
-							}
+			if (type == Type.Object && depth == 0) {
+				if (nextCharacter == ':') {
+					tokenTmp = offset + 1;
+					inProp = true;
+				}
+			}
 
-							if (openQuote)
-								continue;
+			if (nextCharacter == '[' || nextCharacter == '{')
+				depth++;
+			else if (nextCharacter == ']' || nextCharacter == '}')
+				depth--;
 
-							if (type == Type.Object && depth == 0) {
-								if (inputString[offset] == ':') {
-									tokenTmp = offset + 1;
-									inProp = true;
-								}
-							}
+			// If we encounter a ',' at the top level) or a closing ] or }
+			if (nextCharacter == ',' && depth == 0 || depth < 0) {
+				inProp = false;
+				inner = inputString.Substring(tokenTmp, offset - tokenTmp).Trim(Whitespace);
+				tokenTmp = offset + 1;
+				if (inner.Length > 0) {
+					if (type == Type.Object)
+						keys.Add(propName);
 
-							if (inputString[offset] == '[' || inputString[offset] == '{') {
-								depth++;
-							} else if (inputString[offset] == ']' || inputString[offset] == '}') {
-								depth--;
-							}
-
-							//if  (encounter a ',' at top level)  || a closing ]/}
-							if (inputString[offset] == ',' && depth == 0 || depth < 0) {
-								inProp = false;
-								var inner = inputString.Substring(tokenTmp, offset - tokenTmp).Trim(Whitespace);
-								if (inner.Length > 0) {
-									if (type == Type.Object)
-										keys.Add(propName);
-									if (maxDepth != -1) //maxDepth of -1 is the end of the line
-										list.Add(Create(inner, maxDepth < -1 ? -2 : maxDepth - 1, storeExcessLevels));
-									else if (storeExcessLevels)
-										list.Add(CreateBakedObject(inner));
-
-								}
-
-								tokenTmp = offset + 1;
-							}
-						}
+					//maxDepth of -1 is the end of the line
+					if (maxDepth != -1) {
+						tokenTmp = offset + 1;
+						return true;
 					}
-				} else type = Type.Null;
-			} else type = Type.Null; //If the string is missing, this is a null
+
+					if (storeExcessLevels) {
+						list.Add(CreateBakedObject(inner));
+					}
+				}
+			}
+
+			return false;
+		}
+
+		IEnumerable<JSONObject> ParseAsync(string inputString, int maxDepth = -2, bool storeExcessLevels = false, bool strict = false) {
+			if (!BeginParse(inputString, strict))
+				yield break;
+
+			var tokenTmp = 1;
+			var inputStringLength = inputString.Length;
+			var openQuote = false;
+			var inProp = false;
+			string propName = null;
+			var depth = 0;
+			var offset = 0;
+			while (++offset < inputStringLength) {
+				if (PrintWatch.Elapsed.TotalSeconds > MaxFrameTime) {
+					PrintWatch.Reset();
+					yield return this;
+					PrintWatch.Start();
+				}
+
+				string inner;
+				if (!ContinueParse(inputString, maxDepth, storeExcessLevels, ref offset, ref propName, ref openQuote, ref inProp, ref depth, ref tokenTmp, out inner))
+					continue;
+
+				using (var enumerator = CreateAsync(inner, maxDepth < -1 ? -2 : maxDepth - 1, storeExcessLevels).GetEnumerator()) {
+					while (enumerator.MoveNext()) {
+						if (!(PrintWatch.Elapsed.TotalSeconds > MaxFrameTime))
+							continue;
+
+						PrintWatch.Reset();
+						yield return this;
+						PrintWatch.Start();
+					}
+
+					list.Add(enumerator.Current);
+				}
+			}
 		}
 
 		public bool isNumber {

@@ -41,7 +41,7 @@ namespace Defective.JSON {
 
 		[MenuItem("Window/JSONChecker")]
 		static void Init() {
-			GetWindow(typeof(JSONChecker)).Show();
+			GetWindow<JSONChecker>("JSONChecker").Show();
 		}
 
 		void OnGUI() {

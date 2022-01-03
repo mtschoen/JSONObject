@@ -23,24 +23,28 @@ THE SOFTWARE.
 //#define JSONOBJECT_USE_FLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
 
 #if UNITY_5_6_OR_NEWER && JSONOBJECT_TESTS
+using System.Text;
 using NUnit.Framework;
-using UnityEngine;
 using TestStrings = Defective.JSON.Tests.JSONObjectTestStrings;
 
 namespace Defective.JSON.Tests {
 	class JSONObjectTests {
-		static void ValidateJsonString(JSONObject jsonObject, string expected, bool pretty = false) {
-			Assert.That(jsonObject.ToString(pretty), Is.EqualTo(expected));
+		static void ValidateJsonObject(JSONObject jsonObject, string jsonString, bool pretty = false) {
+			Assert.That(jsonObject.ToString(pretty), Is.EqualTo(jsonString));
+		}
+
+		static void ValidateJsonString(string jsonString, bool pretty = false) {
+			ValidateJsonObject(JSONObject.Create(jsonString), jsonString, pretty);
 		}
 
 		[Test]
 		public void InputMatchesOutput() {
-			ValidateJsonString(new JSONObject(TestStrings.JsonString), TestStrings.JsonString);
+			ValidateJsonString(TestStrings.JsonString);
 		}
 
 		[Test]
 		public void PrettyInputMatchesPrettyOutput() {
-			ValidateJsonString(new JSONObject(TestStrings.PrettyJsonString), TestStrings.PrettyJsonString, true);
+			ValidateJsonString(TestStrings.PrettyJsonString, true);
 		}
 
 		[TestCase(long.MaxValue)]
@@ -77,7 +81,7 @@ namespace Defective.JSON.Tests {
 			var jsonObject = new JSONObject(string.Format(TestStrings.JsonFormatFloat, value));
 
 #if JSONOBJECT_USE_FLOAT
-			Assert.That(jsonObject[TestStrings.TestFieldName].floatValue, Is.EqualTo((float) value));
+			Assert.That(jsonObject[TestStrings.FieldName].floatValue, Is.EqualTo((float) value));
 #else
 			Assert.That(jsonObject[TestStrings.FieldName].doubleValue, Is.EqualTo(value));
 #endif
@@ -90,7 +94,7 @@ namespace Defective.JSON.Tests {
 		public void EncodeLong(long value) {
 			var jsonObject = new JSONObject();
 			jsonObject.AddField(TestStrings.FieldName, value);
-			ValidateJsonString(jsonObject, string.Format(TestStrings.JsonFormat, value));
+			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormat, value));
 		}
 
 		[TestCase(float.NegativeInfinity)]
@@ -110,7 +114,7 @@ namespace Defective.JSON.Tests {
 			var expected = (double) value;
 #endif
 
-			ValidateJsonString(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
+			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -132,7 +136,7 @@ namespace Defective.JSON.Tests {
 			var expected = value;
 #endif
 
-			ValidateJsonString(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
+			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
 		}
 
 		[TestCase(long.MaxValue)]
@@ -140,8 +144,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(0)]
 		[TestCase(42)]
 		public void EncodeAndParseLong(long value) {
-			var jsonText = string.Format(TestStrings.JsonFormat, value);
-			ValidateJsonString(new JSONObject(jsonText), jsonText);
+			ValidateJsonString(string.Format(TestStrings.JsonFormat, value));
 		}
 
 		[TestCase(float.NegativeInfinity)]
@@ -152,8 +155,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(0)]
 		[TestCase(42)]
 		public void EncodeAndParseFloat(float value) {
-			var jsonText = string.Format(TestStrings.JsonFormatFloat, value);
-			ValidateJsonString(new JSONObject(jsonText), jsonText);
+			ValidateJsonString(string.Format(TestStrings.JsonFormatFloat, value));
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -169,12 +171,12 @@ namespace Defective.JSON.Tests {
 			var jsonText = string.Format(TestStrings.JsonFormatFloat, value);
 
 #if JSONOBJECT_USE_FLOAT
-			var expected = string.Format(TestJsonFormatFloat, (float) value);
+			var expected = string.Format(TestStrings.JsonFormatFloat, (float) value);
 #else
 			var expected = jsonText;
 #endif
 
-			ValidateJsonString(new JSONObject(jsonText), expected);
+			ValidateJsonObject(new JSONObject(jsonText), expected);
 		}
 
 		[TestCase("Hello World!")]
@@ -184,9 +186,39 @@ namespace Defective.JSON.Tests {
 		[TestCase("\\u00e6")]
 		[TestCase("\\u00f8")]
 		public void EncodeAndParseString(string value) {
-			var jsonText = string.Format(TestStrings.JsonFormatString, value);
-			ValidateJsonString(new JSONObject(jsonText), jsonText);
+			ValidateJsonString(string.Format(TestStrings.JsonFormatString, value));
 		}
+
+		[Test]
+		public void EncodeAndParseLargeObjects() {
+			var stringBuilder = new StringBuilder();
+			stringBuilder.Append('[');
+			for (var i = 0; i < 500; i++) {
+				stringBuilder.Append('{');
+				for (var j = 0; j < 100; j++) {
+					stringBuilder.Append(string.Format("\"field{0}\":{1},", j, j));
+				}
+
+				stringBuilder.Length--;
+				stringBuilder.Append("},");
+			}
+
+			stringBuilder.Length--;
+			stringBuilder.Append("]");
+			var jsonText = stringBuilder.ToString();
+
+			// Repeat multiple times to stress test pooling
+			for (var i = 0; i < 5; i++) {
+				ValidateJsonString(jsonText);
+			}
+		}
+
+#if JSONOBJECT_POOLING
+		[OneTimeTearDown]
+		public void OneTimeTearDown() {
+			JSONObject.ClearPool();
+		}
+#endif
 	}
 }
 #endif

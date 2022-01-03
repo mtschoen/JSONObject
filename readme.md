@@ -7,11 +7,6 @@
 
 I came across the need to send structured data to and from a server on one of my projects, and figured it would be worth my while to use JSON.  When I looked into the issue, I tried a few of the C# implementations listed on http://json.org, but found them to be too complicated to work with and expand upon.  So, I've written a very simple JSONObject class, which can be generically used to encode/decode data into a simple container.  This page assumes that you know what JSON is, and how it works.  It's rather simple, just go to json.org for a visual description of the encoding format.
 
-As an aside, this class is pretty central to the AssetCloud content management system, from Defective Studios.
-
-> **Update:** The code has been updated to version 1.4 to incorporate user-submitted patches and bug reports.  This fixes issues dealing with whitespace in the format, as well as empty arrays and objects, and escaped quotes within strings.
-
-
 # Usage
 
 Users should not have to modify the JSONObject class themselves, and must follow the very simple proceedures outlined below:
@@ -33,6 +28,8 @@ Sample data (in JSON format):
     }
 }
 ```
+
+The test classes provide the best examples for how the API is intended to be used.
 
 ## Features
 
@@ -59,51 +56,28 @@ Also, you JSON buffs (really, who would admit to being a JSON buff...) might als
 * "a string" is considered valid JSON.  There is an optional "strict" parameter to the parser which will bomb out on such input, in case that matters to you.
 * The `Baked` mode is totally made up.
 * The `MaxDepth` parsing is totally made up.
-* `NaN` and `Infinity` aren't officially supported by JSON ([http://stackoverflow.com/questions/1423081/json-left-out-infinity-and-nan-json-status-in-ecmascript read more] about this issue... I lol'd @ the first comment on the first answer)
-* I have no idea about edge cases in my parsing strategy.  I have been using this code for about 3 years now and have only had to modify the parser because other people's use cases (still valid JSON) didn't parse correctly.  In my experience, anything that this code generates is parsed just fine.
+* `NaN` and `Infinity` were introduced in a later version of the standard, and some linters will report them as errors
 
 
 ## Encoding
 
 Encoding is something of a hard-coded process.  This is because I have no idea what your data is!  It would be great if this were some sort of interface for taking an entire class and encoding it's number/string fields, but it's not.  I've come up with a few clever ways of using loops and/or recursive methods to cut down of the amount of code I have to write when I use this tool, but they're pretty project-specific.
 
-Note: This section used to be WRONG! And now it's OLD! Will update later... this will all still work, but there are now a couple of ways to skin this cat.
-
-```C#
-// Note: your data can only be numbers and strings.
-// This is not a solution for object serialization
-// or anything like that.
-JSONObject j = new JSONObject(JSONObject.Type.OBJECT);
-// number
-j.AddField("field1", 0.5);
-// string
-j.AddField("field2", "sampletext");
-// array
-JSONObject arr = new JSONObject(JSONObject.Type.ARRAY);
-j.AddField("field3", arr);
-
-arr.Add(1);
-arr.Add(2);
-arr.Add(3);
-
-string encodedString = j.print();
-```
-
-NEW! The constructor, Add, and AddField functions now support a nested delegate structure.  This is useful if you need to create a nested JSONObject in a single line.  For example:
+The constructor, Add, and AddField functions now support a nested delegate structure.  This is useful if you need to create a nested JSONObject in a single line.  For example:
 
 
 ```C#
-DoRequest(URL, new JSONObject(delegate(JSONObject request) {
-    request.AddField("sort", delegate(JSONObject sort) {
-        sort.AddField("_timestamp", "desc");
-    });
-    request.AddField("query", new JSONObject(delegate(JSONObject query) {
-        query.AddField("match_all", JSONObject.obj);
-    }));
-    request.AddField("fields", delegate(JSONObject fields) {
-        fields.Add("_timestamp");
-    });
-}).ToString());
+void DoRequest(string url, string jsonString) {
+	// Web Request logic
+}
+
+void Test(string url) {
+	DoRequest(url, new JSONObject(request => {
+		request.AddField("sort", sort => sort.AddField("_timestamp", "desc"));
+		request.AddField("query", new JSONObject(query => query.AddField("match_all", JSONObject.emptyObject)));
+		request.AddField("fields", fields => fields.Add("_timestamp"));
+	}).ToString());
+}
 ```
 
 
@@ -112,67 +86,90 @@ DoRequest(URL, new JSONObject(delegate(JSONObject request) {
 Decoding is much simpler on the input end, and again, what you do with the `JSONObject` will vary on a per-project basis.  One of the more complicated way to extract the data is with a recursive function, as drafted below.  Calling the constructor with a properly formatted JSON string will return the root object (or array) containing all of its children, in one neat reference!  The data is in a public `ArrayList` called `list`, with a matching key list (called `keys`!) if the root is an `Object`.  If that's confusing, take a glance over the following code and the `print()` method in the `JSONObject` class.  If there is an error in the JSON formatting (or if there's an error with my code!) the debug console will read "improper JSON formatting".
 
 ```C#
-string encodedString = "{\"field1\": 0.5,\"field2\": \"sampletext\",\"field3\": [1,2,3]}";
-JSONObject j = new JSONObject(encodedString);
-accessData(j);
-//access data (and print it)
-void accessData(JSONObject obj){
-    switch(obj.type){
-        case JSONObject.Type.OBJECT:
-            for(int i = 0; i < obj.list.Count; i++){
-                string key = (string)obj.keys[i];
-                JSONObject j = (JSONObject)obj.list[i];
-                Debug.Log(key);
-                accessData(j);
-            }
-            break;
-        case JSONObject.Type.ARRAY:
-            foreach(JSONObject j in obj.list){
-                accessData(j);
-            }
-            break;
-        case JSONObject.Type.STRING:
-            Debug.Log(obj.str);
-            break;
-        case JSONObject.Type.NUMBER:
-            Debug.Log(obj.n);
-            break;
-        case JSONObject.Type.BOOL:
-            Debug.Log(obj.b);
-            break;
-        case JSONObject.Type.NULL:
-            Debug.Log("NULL");
-            break;
-        
-    }
+void Test() {
+	var encodedString = "{\"field1\": 0.5,\"field2\": \"sampletext\",\"field3\": [1,2,3]}";
+	var jsonObject = new JSONObject(encodedString);
+	AccessData(jsonObject);
+}
+
+void AccessData(JSONObject jsonObject) {
+	switch (jsonObject.type) {
+		case JSONObject.Type.Object:
+			for (var i = 0; i < jsonObject.list.Count; i++) {
+				var key = jsonObject.keys[i];
+				var value = jsonObject.list[i];
+				Debug.Log(key);
+				AccessData(value);
+			}
+			break;
+		case JSONObject.Type.Array:
+			foreach (JSONObject element in jsonObject.list) {
+				AccessData(element);
+			}
+			break;
+		case JSONObject.Type.String:
+			Debug.Log(jsonObject.stringValue);
+			break;
+		case JSONObject.Type.Number:
+			Debug.Log(jsonObject.floatValue);
+			break;
+		case JSONObject.Type.Bool:
+			Debug.Log(jsonObject.boolValue);
+			break;
+		case JSONObject.Type.Null:
+			Debug.Log("Null");
+			break;
+		case JSONObject.Type.Baked:
+			Debug.Log(jsonObject.stringValue);
+			break;
+	}
 }
 ```
 
-NEW! Decoding now also supports a delegate format which will automatically check if a field exists before processing the data, providing an optional parameter for an OnFieldNotFound response.  For example:
+Decoding also supports a delegate format which will automatically check if a field exists before processing the data, providing an optional parameter for an OnFieldNotFound response.  For example:
 
 ```C#
-new JSONObject(data);
-list.GetField("hits", delegate(JSONObject hits) {
-	hits.GetField("hits", delegate(JSONObject hits2) {
-		foreach (JSONObject gameSession in hits2.list) {
-			Debug.Log(gameSession);
+void Test(string jsonString) {
+	var list = new JSONObject(jsonString);
+	list.GetField("users", users => {
+		foreach (var user in users.list) {
+			var thisUser = user;
+			users.GetField("sessions", sessions => {
+				foreach (JSONObject gameSession in sessions.list) {
+					Debug.Log(gameSession);
+				}
+			}, name => Debug.LogWarning(string.Format("No sessions for user {0}", thisUser["name"].stringValue)));
 		}
+		
 	});
-}, delegate(string name) {	//"name" will be equal to the name of the missing field.  In this case, "hits"
-	Debug.LogWarning("no game sessions");
-});
+}
 ```
 
-## Not So New! `(O(n))` Random access!
+## `(O(n))` Random access
 
 I've added a string and int [] index to the class, so you can now retrieve data as such (from above):
 
 ```C#
-JSONObject arr = obj["field3"];
-Debug.log(arr[2].n); //Should ouptut "3"
+void Test() {
+	var jsonObject = new JSONObject("{\"field\":[0,1,2]");
+	var array = jsonObject["field"];
+	Debug.Log(array[2].intValue); //Should ouptut "2"
+}
 ```
 
 ## Change Log
+
+### v2.1
+* Add async parsing method
+* Fix parsing errors
+* Refactor VectorTemplates to use extension methods
+* Add more tests
+
+### v2.0
+* Add JSONObject to Defective.JSON namespace
+* Update APIs to be more descriptive
+* Fix parsing errors
+* Add tests
 
 ### v1.4
 Big update!

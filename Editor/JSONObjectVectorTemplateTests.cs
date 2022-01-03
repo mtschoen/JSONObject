@@ -132,6 +132,13 @@ namespace Defective.JSON.Tests {
 			Assert.That(result.top, Is.EqualTo(value.top));
 			Assert.That(result.bottom, Is.EqualTo(value.bottom));
 		}
+
+#if JSONOBJECT_POOLING
+		[OneTimeTearDown]
+		public void OneTimeTearDown() {
+			JSONObject.ClearPool();
+		}
+#endif
 	}
 }
 #endif
