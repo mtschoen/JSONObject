@@ -25,6 +25,7 @@ THE SOFTWARE.
 #if UNITY_5_6_OR_NEWER && JSONOBJECT_TESTS
 using System.Text;
 using NUnit.Framework;
+using UnityEngine;
 using TestStrings = Defective.JSON.Tests.JSONObjectTestStrings;
 
 namespace Defective.JSON.Tests {
