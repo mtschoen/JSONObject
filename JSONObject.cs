@@ -76,6 +76,16 @@ namespace Defective.JSON {
 			Baked
 		}
 
+		struct ParseResult {
+			public readonly JSONObject result;
+			public readonly int offset;
+
+			public ParseResult(JSONObject result, int offset) {
+				this.result = result;
+				this.offset = offset;
+			}
+		}
+
 		public bool isContainer {
 			get { return type == Type.Array || type == Type.Object; }
 		}
@@ -276,16 +286,6 @@ namespace Defective.JSON {
 		public static JSONObject Create(Type type) {
 			var jsonObject = Create();
 			jsonObject.type = type;
-			switch (type) {
-				case Type.Array:
-					jsonObject.list = new List<JSONObject>();
-					break;
-				case Type.Object:
-					jsonObject.list = new List<JSONObject>();
-					jsonObject.keys = new List<string>();
-					break;
-			}
-
 			return jsonObject;
 		}
 
@@ -479,12 +479,11 @@ namespace Defective.JSON {
 				var currentCharacter = inputString[offset++];
 				if (Array.IndexOf(Whitespace, currentCharacter) > -1)
 					continue;
-				
+
 				if (currentCharacter != ']')
 					isEmptyArray = false;
-				
+
 				JSONObject newContainer;
-				JSONObject child;
 				switch (currentCharacter) {
 					case '\\':
 						offset++;
@@ -493,6 +492,7 @@ namespace Defective.JSON {
 						if (openQuote)
 							break;
 
+						isValue = false;
 						newContainer = container;
 						if (!isRoot) {
 							newContainer = Create();
@@ -501,12 +501,12 @@ namespace Defective.JSON {
 
 						newContainer.type = Type.Object;
 						Parse(inputString, ref offset, endOffset, newContainer, false, false, false);
-						isValue = false;
 						break;
 					case '[':
 						if (openQuote)
 							break;
 
+						isValue = false;
 						newContainer = container;
 						if (!isRoot) {
 							newContainer = Create();
@@ -515,102 +515,138 @@ namespace Defective.JSON {
 
 						newContainer.type = Type.Array;
 						Parse(inputString, ref offset, endOffset, newContainer, true, false, false);
-						isValue = false;
 						break;
 					case '}':
-						if (openQuote)
-							break;
-
-						if (isValue) {
-							if (container == null) {
-								Debug.LogError("Parsing error: encountered `}` with no container object");
-								return;
-							}
-
-							child = Create();
-							child.ParseValue(inputString, startOffset, lastValidOffset);
-							SafeAddChild(container, child);
+						if (!ParseObjectEnd(inputString, openQuote, isValue, container, startOffset, lastValidOffset))
 							return;
-						}
 
-						return;
+						break;
 					case ']':
+						if (!ParseArrayEnd(inputString, openQuote, isEmptyArray, isValue, container, startOffset, lastValidOffset))
+							return;
+
+						break;
+					case '"':
+						if (!ParseQuote(inputString, ref openQuote, ref isValue, container, offset, ref quoteStart, ref quoteEnd))
+							return;
+
+						break;
+					case ':':
+						if (!ParseColon(inputString, openQuote, ref isValue, container, ref startOffset, offset, quoteStart, quoteEnd))
+							return;
+
+						break;
+					case ',':
+						if (!ParseComma(inputString, openQuote, ref isValue, container, ref startOffset, offset, lastValidOffset))
+							return;
+
+						break;
+				}
+
+				lastValidOffset = offset - 1;
+			}
+		}
+
+		static IEnumerable<ParseResult> ParseAsync(string inputString, int offset, int endOffset, JSONObject container, bool isValue, bool isRoot, bool strict) {
+			if (endOffset == -1)
+				endOffset = inputString.Length - offset;
+
+			if (!BeginParse(inputString, offset, strict))
+				yield break;
+
+			var startOffset = offset;
+			var quoteStart = 0;
+			var quoteEnd = 0;
+			var lastValidOffset = offset;
+			var openQuote = false;
+			var isEmptyArray = true;
+			while (offset < endOffset) {
+				if (PrintWatch.Elapsed.TotalSeconds > MaxFrameTime) {
+					PrintWatch.Reset();
+					yield return new ParseResult(container, offset);
+					PrintWatch.Start();
+				}
+
+				var currentCharacter = inputString[offset++];
+				if (Array.IndexOf(Whitespace, currentCharacter) > -1)
+					continue;
+
+				if (currentCharacter != ']')
+					isEmptyArray = false;
+
+				JSONObject newContainer;
+				switch (currentCharacter) {
+					case '\\':
+						offset++;
+						break;
+					case '{':
 						if (openQuote)
 							break;
 
-						if (isEmptyArray)
-							return;
-
-						if (isValue) {
-							if (container == null) {
-								Debug.LogError("Parsing error: encountered `]` with no container object");
-								return;
-							}
-
-							child = Create();
-							child.ParseValue(inputString, startOffset, lastValidOffset);
-							SafeAddChild(container, child);
-							return;
+						isValue = false;
+						newContainer = container;
+						if (!isRoot) {
+							newContainer = Create();
+							SafeAddChild(container, newContainer);
 						}
 
-						return;
+						newContainer.type = Type.Object;
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, false, false, false)) {
+							yield return e;
+							offset = e.offset;
+						}
+
+						break;
+					case '[':
+						if (openQuote)
+							break;
+
+						isValue = false;
+						newContainer = container;
+						if (!isRoot) {
+							newContainer = Create();
+							SafeAddChild(container, newContainer);
+						}
+
+						newContainer.type = Type.Array;
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, true, false, false)) {
+							yield return e;
+							offset = e.offset;
+						}
+
+						break;
+					case '}':
+						if (!ParseObjectEnd(inputString, openQuote, isValue, container, startOffset, lastValidOffset)) {
+							yield return new ParseResult(container, offset);
+							yield break;
+						}
+
+						break;
+					case ']':
+						if (!ParseArrayEnd(inputString, openQuote, isEmptyArray, isValue, container, startOffset, lastValidOffset)) {
+							yield return new ParseResult(container, offset);
+							yield break;
+						}
+
+						break;
 					case '"':
-						if (openQuote) {
-							quoteEnd = offset - 1;
-							openQuote = false;
-
-							if (isValue) {
-								if (container == null) {
-									Debug.LogError("Parsing error: encountered string with no container object");
-									return;
-								}
-
-								child = CreateStringObject(UnEscapeString(inputString.Substring(quoteStart, quoteEnd - quoteStart)));
-								SafeAddChild(container, child);
-								isValue = false;
-							}
-						} else {
-							quoteStart = offset;
-							openQuote = true;
+						if (!ParseQuote(inputString, ref openQuote, ref isValue, container, offset, ref quoteStart, ref quoteEnd)) {
+							yield return new ParseResult(container, offset);
+							yield break;
 						}
 
 						break;
 					case ':':
-						if (openQuote)
-							break;
-
-						if (container == null) {
-							Debug.LogError("Parsing error: encountered `:` with no container object");
-							return;
+						if (!ParseColon(inputString, openQuote, ref isValue, container, ref startOffset, offset, quoteStart, quoteEnd)) {
+							yield return new ParseResult(container, offset);
+							yield break;
 						}
-
-						var keys = container.keys;
-						if (keys == null) {
-							keys = new List<string>();
-							container.keys = keys;
-						}
-
-						container.keys.Add(inputString.Substring(quoteStart, quoteEnd - quoteStart));
-						startOffset = offset;
-						isValue = true;
 
 						break;
 					case ',':
-						if (openQuote)
-							break;
-
-						if (isValue) {
-							if (container == null) {
-								Debug.LogError("Parsing error: encountered `,` with no container object");
-								return;
-							}
-
-							child = Create();
-							child.ParseValue(inputString, startOffset, lastValidOffset);
-							SafeAddChild(container, child);
-							startOffset = offset;
-							if (container.isObject)
-								isValue = false;
+						if (!ParseComma(inputString, openQuote, ref isValue, container, ref startOffset, offset, lastValidOffset)) {
+							yield return new ParseResult(container, offset);
+							yield break;
 						}
 
 						break;
@@ -618,6 +654,8 @@ namespace Defective.JSON {
 
 				lastValidOffset = offset - 1;
 			}
+
+			yield return new ParseResult(container, offset);
 		}
 
 		static void SafeAddChild(JSONObject container, JSONObject child) {
@@ -649,19 +687,19 @@ namespace Defective.JSON {
 				return;
 			}
 #if JSONOBJECT_USE_FLOAT
-			if (inputString == Infinity) {
+			if (firstCharacter == 'I') {
 				type = Type.Number;
 				floatValue = float.PositiveInfinity;
 				return;
 			}
 
-			if (inputString == NegativeInfinity) {
+			if (firstCharacter == '-' && inputString[startOffset + 1] == 'I') {
 				type = Type.Number;
 				floatValue = float.NegativeInfinity;
 				return;
 			}
 
-			if (inputString == NaN) {
+			if (firstCharacter == 'N') {
 				type = Type.Number;
 				floatValue = float.NaN;
 				return;
@@ -696,18 +734,17 @@ namespace Defective.JSON {
 #endif
 				} else {
 					longValue = Convert.ToInt64(numericString, CultureInfo.InvariantCulture);
+					isInteger = true;
 #if JSONOBJECT_USE_FLOAT
 					floatValue = longValue;
 #else
 					doubleValue = longValue;
 #endif
-					isInteger = true;
 				}
 
 				type = Type.Number;
 			} catch (OverflowException) {
 				type = Type.Number;
-
 #if JSONOBJECT_USE_FLOAT
 				floatValue = numericString.StartsWith("-") ? float.NegativeInfinity : float.PositiveInfinity;
 #else
@@ -724,199 +761,112 @@ namespace Defective.JSON {
 			}
 		}
 
-		struct ParseResult {
-			public readonly JSONObject result;
-			public readonly int offset;
+		static bool ParseObjectEnd(string inputString, bool openQuote, bool isValue, JSONObject container, int startOffset, int lastValidOffset) {
+			if (openQuote)
+				return true;
 
-			public ParseResult(JSONObject result, int offset) {
-				this.result = result;
-				this.offset = offset;
+			if (isValue) {
+				if (container == null) {
+					Debug.LogError("Parsing error: encountered `}` with no container object");
+					return false;
+				}
+
+				var child = Create();
+				child.ParseValue(inputString, startOffset, lastValidOffset);
+				SafeAddChild(container, child);
+				return false;
 			}
+
+			return false;
 		}
 
-		static IEnumerable<ParseResult> ParseAsync(string inputString, int offset, int endOffset, JSONObject container, bool isValue, bool isRoot, bool strict) {
-			if (endOffset == -1)
-				endOffset = inputString.Length - offset;
+		static bool ParseArrayEnd(string inputString, bool openQuote, bool isEmptyArray, bool isValue, JSONObject container, int startOffset, int lastValidOffset) {
+			if (openQuote)
+				return true;
 
-			if (!BeginParse(inputString, offset, strict))
-				yield break;
-
-			var startOffset = offset;
-			var quoteStart = 0;
-			var quoteEnd = 0;
-			var lastValidOffset = offset;
-			var openQuote = false;
-			var isEmptyArray = true;
-			while (offset < endOffset) {
-				if (PrintWatch.Elapsed.TotalSeconds > MaxFrameTime) {
-					PrintWatch.Reset();
-					yield return new ParseResult(container, offset);
-					PrintWatch.Start();
-				}
-
-				var currentCharacter = inputString[offset++];
-				if (Array.IndexOf(Whitespace, currentCharacter) > -1)
-					continue;
-
-				if (currentCharacter != ']')
-					isEmptyArray = false;
-
-				JSONObject newContainer;
-				JSONObject child;
-				switch (currentCharacter) {
-					case '\\':
-						offset++;
-						break;
-					case '{':
-						if (openQuote)
-							break;
-
-						newContainer = container;
-						if (!isRoot) {
-							newContainer = Create();
-							SafeAddChild(container, newContainer);
-						}
-
-						newContainer.type = Type.Object;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, false, false, false)) {
-							yield return e;
-							offset = e.offset;
-						}
-
-						isValue = false;
-						break;
-					case '[':
-						if (openQuote)
-							break;
-
-						newContainer = container;
-						if (!isRoot) {
-							newContainer = Create();
-							SafeAddChild(container, newContainer);
-						}
-
-						newContainer.type = Type.Array;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, true, false, false)) {
-							yield return e;
-							offset = e.offset;
-						}
-
-						isValue = false;
-						break;
-					case '}':
-						if (openQuote)
-							break;
-
-						if (isValue) {
-							if (container == null) {
-								Debug.LogError("Parsing error: encountered `}` with no container object");
-								yield return new ParseResult(container, offset);
-								yield break;
-							}
-
-							child = Create();
-							child.ParseValue(inputString, startOffset, lastValidOffset);
-							SafeAddChild(container, child);
-							yield return new ParseResult(container, offset);
-							yield break;
-						}
-
-						yield return new ParseResult(container, offset);
-						yield break;
-					case ']':
-						if (openQuote)
-							break;
-
-						if (isEmptyArray) {
-							yield return new ParseResult(container, offset);
-							yield break;
-						}
-
-						if (isValue) {
-							if (container == null) {
-								Debug.LogError("Parsing error: encountered `]` with no container object");
-								yield return new ParseResult(container, offset);
-								yield break;
-							}
-
-							child = Create();
-							child.ParseValue(inputString, startOffset, lastValidOffset);
-							SafeAddChild(container, child);
-							yield return new ParseResult(container, offset);
-							yield break;
-						}
-
-						yield return new ParseResult(container, offset);
-						yield break;
-					case '"':
-						if (openQuote) {
-							quoteEnd = offset - 1;
-							openQuote = false;
-
-							if (isValue) {
-								if (container == null) {
-									Debug.LogError("Parsing error: encountered string with no container object");
-									yield return new ParseResult(container, offset);
-									yield break;
-								}
-
-								child = CreateStringObject(UnEscapeString(inputString.Substring(quoteStart, quoteEnd - quoteStart)));
-								SafeAddChild(container, child);
-								isValue = false;
-							}
-						} else {
-							quoteStart = offset;
-							openQuote = true;
-						}
-
-						break;
-					case ':':
-						if (openQuote)
-							break;
-
-						if (container == null) {
-							Debug.LogError("Parsing error: encountered `:` with no container object");
-							yield return new ParseResult(container, offset);
-							yield break;
-						}
-
-						var keys = container.keys;
-						if (keys == null) {
-							keys = new List<string>();
-							container.keys = keys;
-						}
-
-						container.keys.Add(inputString.Substring(quoteStart, quoteEnd - quoteStart));
-						startOffset = offset;
-						isValue = true;
-
-						break;
-					case ',':
-						if (openQuote)
-							break;
-
-						if (isValue) {
-							if (container == null) {
-								Debug.LogError("Parsing error: encountered `,` with no container object");
-								yield return new ParseResult(container, offset);
-								yield break;
-							}
-
-							child = Create();
-							child.ParseValue(inputString, startOffset, lastValidOffset);
-							SafeAddChild(container, child);
-							startOffset = offset;
-							if (container.isObject)
-								isValue = false;
-						}
-
-						break;
-				}
-
-				lastValidOffset = offset - 1;
+			if (isEmptyArray) {
+				return false;
 			}
 
-			yield return new ParseResult(container, offset);
+			if (isValue) {
+				if (container == null) {
+					Debug.LogError("Parsing error: encountered `]` with no container object");
+					return false;
+				}
+
+				var child = Create();
+				child.ParseValue(inputString, startOffset, lastValidOffset);
+				SafeAddChild(container, child);
+				return false;
+			}
+
+			return false;
+		}
+
+		static bool ParseQuote(string inputString, ref bool openQuote, ref bool isValue, JSONObject container, int offset, ref int quoteStart, ref int quoteEnd) {
+			if (openQuote) {
+				quoteEnd = offset - 1;
+				openQuote = false;
+
+				if (isValue) {
+					if (container == null) {
+						Debug.LogError("Parsing error: encountered string with no container object");
+						return false;
+					}
+
+					var child = CreateStringObject(UnEscapeString(inputString.Substring(quoteStart, quoteEnd - quoteStart)));
+					SafeAddChild(container, child);
+					isValue = false;
+				}
+			} else {
+				quoteStart = offset;
+				openQuote = true;
+			}
+
+			return true;
+		}
+
+		static bool ParseColon(string inputString, bool openQuote, ref bool isValue, JSONObject container, ref int startOffset, int offset, int quoteStart, int quoteEnd) {
+			if (openQuote)
+				return true;
+
+			if (container == null) {
+				Debug.LogError("Parsing error: encountered `:` with no container object");
+				return false;
+			}
+
+			var keys = container.keys;
+			if (keys == null) {
+				keys = new List<string>();
+				container.keys = keys;
+			}
+
+			container.keys.Add(inputString.Substring(quoteStart, quoteEnd - quoteStart));
+			startOffset = offset;
+			isValue = true;
+
+			return true;
+		}
+
+		static bool ParseComma(string inputString, bool openQuote, ref bool isValue, JSONObject container, ref int startOffset, int offset, int lastValidOffset) {
+			if (openQuote)
+				return true;
+
+			if (isValue) {
+				if (container == null) {
+					Debug.LogError("Parsing error: encountered `,` with no container object");
+					return false;
+				}
+
+				var child = Create();
+				child.ParseValue(inputString, startOffset, lastValidOffset);
+				SafeAddChild(container, child);
+				startOffset = offset;
+				if (container.isObject)
+					isValue = false;
+			}
+
+			return true;
 		}
 
 		public bool isNumber {
