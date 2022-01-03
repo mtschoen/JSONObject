@@ -457,9 +457,26 @@ namespace Defective.JSON {
 				type = Type.Null; //If the string is missing, this is a null
 				return false;
 			}
+			
+			var whitespaceLength = Whitespace.Length;
+			var offset = 0;
+			bool isWhitespace;
+			char firstCharacter;
+			do {
+				isWhitespace = false;
+				firstCharacter = inputString[offset++];
+				for (var i = 0; i < whitespaceLength; i++) {
+					if (Whitespace[i] == firstCharacter) {
+						isWhitespace = true;
+						break;
+					}
+				}
+			} while (isWhitespace);
 
-			inputString = inputString.Trim(Whitespace);
-			var firstCharacter = inputString[0];
+			var inputStringLength = inputString.Length;
+			if (offset > inputStringLength)
+				return false;
+
 			if (strict) {
 				if (firstCharacter != '[' && firstCharacter != '{') {
 					type = Type.Null;
@@ -483,13 +500,15 @@ namespace Defective.JSON {
 			} else if (inputString == Null) {
 				type = Type.NULL;
 #else
-			if (string.Compare(inputString, True, true, CultureInfo.InvariantCulture) == 0) {
+
+			// Use character comparison instead of string compare as performance optimization
+			if (firstCharacter == 't') {
 				type = Type.Bool;
 				boolValue = true;
-			} else if (string.Compare(inputString, False, true, CultureInfo.InvariantCulture) == 0) {
+			} else if (firstCharacter == 'f') {
 				type = Type.Bool;
 				boolValue = false;
-			} else if (string.Compare(inputString, Null, true, CultureInfo.InvariantCulture) == 0) {
+			} else if (firstCharacter == 'n') {
 				type = Type.Null;
 #endif
 #if JSONOBJECT_USE_FLOAT
@@ -515,7 +534,18 @@ namespace Defective.JSON {
 #endif
 			} else if (firstCharacter == '"') {
 				type = Type.String;
-				stringValue = UnEscapeString(inputString.Substring(1, inputString.Length - 2));
+				offset = inputStringLength - 1;
+				do {
+					isWhitespace = false;
+					var lastCharacter = inputString[offset--];
+					for (var i = 0; i < whitespaceLength; i++) {
+						if (Whitespace[i] == lastCharacter) {
+							isWhitespace = true;
+							break;
+						}
+					}
+				} while (isWhitespace);
+				stringValue = UnEscapeString(inputString.Substring(1, offset - 2));
 			} else {
 				/*
 				 * Checking for the following formatting (www.json.org)
@@ -580,6 +610,7 @@ namespace Defective.JSON {
 		bool ContinueParse(string inputString, int maxDepth, bool storeExcessLevels, ref int offset, ref string propName,
 			ref bool openQuote, ref bool inProp, ref int depth, ref int tokenTmp, out string inner) {
 			inner = null;
+
 			var nextCharacter = inputString[offset];
 			if (Array.IndexOf(Whitespace, nextCharacter) > -1)
 				return false;
@@ -662,7 +693,8 @@ namespace Defective.JSON {
 				if (!ContinueParse(inputString, maxDepth, storeExcessLevels, ref offset, ref propName, ref openQuote, ref inProp, ref depth, ref tokenTmp, out inner))
 					continue;
 
-				using (var enumerator = CreateAsync(inner, maxDepth < -1 ? -2 : maxDepth - 1, storeExcessLevels).GetEnumerator()) {
+				var jsonObject = Create();
+				using (var enumerator = jsonObject.ParseAsync(inner, maxDepth < -1 ? -2 : maxDepth - 1, storeExcessLevels).GetEnumerator()) {
 					while (enumerator.MoveNext()) {
 						if (!(PrintWatch.Elapsed.TotalSeconds > MaxFrameTime))
 							continue;
@@ -672,7 +704,7 @@ namespace Defective.JSON {
 						PrintWatch.Start();
 					}
 
-					list.Add(enumerator.Current);
+					list.Add(jsonObject);
 				}
 			}
 		}
