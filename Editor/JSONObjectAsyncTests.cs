@@ -75,8 +75,42 @@ namespace Defective.JSON.Tests {
 				}
 
 				var result = parser.Current;
-				Assert.That(result.offset, Is.EqualTo(end));
+				Assert.That(result.offset, Is.EqualTo(end + 1));
 				ValidateJsonObject(result.result, substring);
+			}
+		}
+
+		[Test]
+		public void MaxDepthWithoutExcessLevels() {
+			using (var parser = JSONObject.CreateAsync(TestStrings.JsonString, maxDepth: 2, storeExcessLevels: false).GetEnumerator()) {
+				while (parser.MoveNext()) { }
+
+				var jsonObject = parser.Current.result;
+				var testObject = jsonObject["TestObject"];
+				var someObject = testObject["SomeObject"];
+				Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Null));
+
+				var nestedArray = testObject["NestedArray"];
+				Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Null));
+			}
+		}
+
+		[Test]
+		public void MaxDepthWithExcessLevels() {
+			using (var parser = JSONObject.CreateAsync(TestStrings.JsonString, maxDepth: 2, storeExcessLevels: true).GetEnumerator()) {
+				while (parser.MoveNext()) { }
+
+				var jsonObject = parser.Current.result;
+				var testObject = jsonObject["TestObject"];
+				var someObject = testObject["SomeObject"];
+				Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Baked));
+				Assert.That(someObject.stringValue, Is.EqualTo(TestStrings.SomeObject));
+
+				var nestedArray = testObject["NestedArray"];
+				Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Baked));
+				Assert.That(nestedArray.stringValue, Is.EqualTo(TestStrings.NestedArray));
+
+				ValidateJsonObject(jsonObject, TestStrings.JsonString);
 			}
 		}
 

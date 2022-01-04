@@ -24,7 +24,9 @@ THE SOFTWARE.
 
 namespace Defective.JSON.Tests {
 	static class JSONObjectTestStrings {
-		public const string JsonString = "{\"TestObject\":{\"SomeText\":\"Blah\",\"SomeObject\":{\"SomeNumber\":42,\"SomeFloat\":13.37,\"SomeBool\":true,\"SomeNull\":null},\"SomeEmptyObject\":{},\"SomeEmptyArray\":[],\"BasicArray\":[0,1,2],\"NestedArray\":[[0,1,[0,1]],{\"field\":42}],\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"}}";
+		public const string SomeObject = "{\"SomeNumber\":42,\"SomeFloat\":13.37,\"SomeBool\":true,\"SomeNull\":null}";
+		public const string NestedArray = "[[0,1,[0,1]],{\"field\":42}]";
+		public const string JsonString = "{\"TestObject\":{\"SomeText\":\"Blah\",\"SomeObject\":" + SomeObject + ",\"SomeEmptyObject\":{},\"SomeEmptyArray\":[],\"BasicArray\":[0,1,2],\"NestedArray\":" + NestedArray + ",\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"}}";
 		public const string PrettyJsonString = "{\r\n\t\"TestObject\":{\r\n\t\t\"SomeText\":\"Blah\",\r\n\t\t\"SomeObject\":{\r\n\t\t\t\"SomeNumber\":42,\r\n\t\t\t\"SomeFloat\":13.37,\r\n\t\t\t\"SomeBool\":true,\r\n\t\t\t\"SomeNull\":null\r\n\t\t},\r\n\t\t\"SomeEmptyObject\":{},\r\n\t\t\"SomeEmptyArray\":[],\r\n\t\t\"EmbeddedObject\":\"{\\\"field\\\":\\\"Value with \\\\\\\"escaped quotes\\\\\\\"\\\"}\"\r\n\t}\r\n}";
 		public const string FieldName = "TestField";
 		public const string JsonFormat = "{{\"" + FieldName + "\":{0}}}";

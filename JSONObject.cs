@@ -369,12 +369,15 @@ namespace Defective.JSON {
 		/// </summary>
 		/// <param name="jsonString">A string containing valid JSON to be parsed into objects</param>
 		/// <param name="offset">An offset into the string at which to start parsing</param>
-		/// <param name="length">The length of the string after the offset to parse
+		/// <param name="endOffset">The length of the string after the offset to parse
 		/// Specify a length of -1 (default) to use the full string length</param>
+		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
+		/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
+		/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
 		/// <returns>A JSONObject containing the parsed data</returns>
-		public static JSONObject Create(string jsonString, int offset = 0, int length = -1) {
+		public static JSONObject Create(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -2, bool storeExcessLevels = false) {
 			var jsonObject = Create();
-			Parse(jsonString, ref offset, length, jsonObject);
+			Parse(jsonString, ref offset, endOffset, jsonObject, maxDepth, storeExcessLevels);
 			return jsonObject;
 		}
 
@@ -406,15 +409,15 @@ namespace Defective.JSON {
 		/// <param name="offset">An offset into the string at which to start parsing</param>
 		/// <param name="endOffset">The length of the string after the offset to parse
 		/// Specify a length of -1 (default) to use the full string length</param>
-		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
-		/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
+		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 0 for only top-level data
+		/// 1 for the first 2 levels, etc. Use a value of -1 (default) to parse all levels of nesting.</param>
 		/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
 		/// <returns>A JSONObject containing the parsed data</returns>
-		public static IEnumerable<ParseResult> CreateAsync(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -2, bool storeExcessLevels = false) {
+		public static IEnumerable<ParseResult> CreateAsync(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -1, bool storeExcessLevels = false) {
 			var jsonObject = Create();
 			PrintWatch.Reset();
 			PrintWatch.Start();
-			foreach (var e in ParseAsync(jsonString, offset, endOffset, jsonObject)) {
+			foreach (var e in ParseAsync(jsonString, offset, endOffset, jsonObject, maxDepth, storeExcessLevels)) {
 				if (e.pause)
 					yield return e;
 
@@ -433,14 +436,17 @@ namespace Defective.JSON {
 		/// <param name="offset">An offset into the string at which to start parsing</param>
 		/// <param name="endOffset">The length of the string after the offset to parse
 		/// Specify a length of -1 (default) to use the full string length</param>
-		public JSONObject(string jsonString, int offset = 0, int endOffset = -1) {
-			Parse(jsonString, ref offset, endOffset, this);
+		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 0 for only top-level data
+		/// 1 for the first 2 levels, etc. Use a value of -1 (default) to parse all levels of nesting.</param>
+		/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
+		public JSONObject(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -1, bool storeExcessLevels = false) {
+			Parse(jsonString, ref offset, endOffset, this, maxDepth, storeExcessLevels);
 		}
 
 		static bool BeginParse(string inputString, int offset, ref int endOffset) {
 			var stringLength = inputString.Length;
 			if (endOffset == -1)
-				endOffset = stringLength - offset;
+				endOffset = stringLength - 1;
 
 			if (string.IsNullOrEmpty(inputString) || endOffset >= stringLength || offset >= endOffset)
 				return false;
@@ -448,7 +454,8 @@ namespace Defective.JSON {
 			return true;
 		}
 
-		static void Parse(string inputString, ref int offset, int endOffset, JSONObject container, bool isValue = false, bool isRoot = true) {
+		static void Parse(string inputString, ref int offset, int endOffset, JSONObject container,
+			int maxDepth, bool storeExcessLevels, int depth = 0, bool isValue = false, bool isRoot = true) {
 			if (!BeginParse(inputString, offset, ref endOffset))
 				return;
 
@@ -458,7 +465,8 @@ namespace Defective.JSON {
 			var lastValidOffset = offset;
 			var openQuote = false;
 			var isEmptyArray = true;
-			while (offset < endOffset) {
+			var bakeDepth = 0;
+			while (offset <= endOffset) {
 				var currentCharacter = inputString[offset++];
 				if (Array.IndexOf(Whitespace, currentCharacter) > -1)
 					continue;
@@ -476,6 +484,11 @@ namespace Defective.JSON {
 							break;
 
 						isValue = false;
+						if (maxDepth >= 0 && depth >= maxDepth) {
+							bakeDepth++;
+							break;
+						}
+
 						newContainer = container;
 						if (!isRoot) {
 							newContainer = Create();
@@ -483,13 +496,20 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Object;
-						Parse(inputString, ref offset, endOffset, newContainer, false, false);
+						Parse(inputString, ref offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, false, false);
+
+
 						break;
 					case '[':
 						if (openQuote)
 							break;
 
 						isValue = false;
+						if (maxDepth >= 0 && depth >= maxDepth) {
+							bakeDepth++;
+							break;
+						}
+
 						newContainer = container;
 						if (!isRoot) {
 							newContainer = Create();
@@ -497,30 +517,31 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Array;
-						Parse(inputString, ref offset, endOffset, newContainer, true, false);
+						Parse(inputString, ref offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, true, false);
+
 						break;
 					case '}':
-						if (!ParseObjectEnd(inputString, openQuote, isValue, container, startOffset, lastValidOffset))
+						if (!ParseObjectEnd(inputString, offset, openQuote, isValue, container, startOffset, lastValidOffset, maxDepth, storeExcessLevels, depth, ref bakeDepth))
 							return;
 
 						break;
 					case ']':
-						if (!ParseArrayEnd(inputString, openQuote, isEmptyArray, isValue, container, startOffset, lastValidOffset))
+						if (!ParseArrayEnd(inputString, offset, openQuote, isEmptyArray, isValue, container, startOffset, lastValidOffset, maxDepth, storeExcessLevels, depth, ref bakeDepth))
 							return;
 
 						break;
 					case '"':
-						if (!ParseQuote(inputString, ref openQuote, ref isValue, container, offset, ref quoteStart, ref quoteEnd))
+						if (!ParseQuote(inputString, ref openQuote, ref isValue, container, offset, ref quoteStart, ref quoteEnd, bakeDepth))
 							return;
 
 						break;
 					case ':':
-						if (!ParseColon(inputString, openQuote, ref isValue, container, ref startOffset, offset, quoteStart, quoteEnd))
+						if (!ParseColon(inputString, openQuote, ref isValue, container, ref startOffset, offset, quoteStart, quoteEnd, bakeDepth))
 							return;
 
 						break;
 					case ',':
-						if (!ParseComma(inputString, openQuote, ref isValue, container, ref startOffset, offset, lastValidOffset))
+						if (!ParseComma(inputString, openQuote, ref isValue, container, ref startOffset, offset, lastValidOffset, bakeDepth))
 							return;
 
 						break;
@@ -530,7 +551,8 @@ namespace Defective.JSON {
 			}
 		}
 
-		static IEnumerable<ParseResult> ParseAsync(string inputString, int offset, int endOffset, JSONObject container, bool isValue = false, bool isRoot = true) {
+		static IEnumerable<ParseResult> ParseAsync(string inputString, int offset, int endOffset, JSONObject container,
+			int maxDepth, bool storeExcessLevels, int depth = 0, bool isValue = false, bool isRoot = true) {
 			if (!BeginParse(inputString, offset, ref endOffset))
 				yield break;
 
@@ -540,7 +562,8 @@ namespace Defective.JSON {
 			var lastValidOffset = offset;
 			var openQuote = false;
 			var isEmptyArray = true;
-			while (offset < endOffset) {
+			var bakeDepth = 0;
+			while (offset <= endOffset) {
 				if (PrintWatch.Elapsed.TotalSeconds > MaxFrameTime) {
 					PrintWatch.Reset();
 					yield return new ParseResult(container, offset, true);
@@ -564,6 +587,11 @@ namespace Defective.JSON {
 							break;
 
 						isValue = false;
+						if (maxDepth >= 0 && depth >= maxDepth) {
+							bakeDepth++;
+							break;
+						}
+
 						newContainer = container;
 						if (!isRoot) {
 							newContainer = Create();
@@ -571,7 +599,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Object;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, false, false)) {
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, false, false)) {
 							if (e.pause)
 								yield return e;
 
@@ -584,6 +612,11 @@ namespace Defective.JSON {
 							break;
 
 						isValue = false;
+						if (maxDepth >= 0 && depth >= maxDepth) {
+							bakeDepth++;
+							break;
+						}
+
 						newContainer = container;
 						if (!isRoot) {
 							newContainer = Create();
@@ -591,7 +624,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Array;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, true, false)) {
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, true, false)) {
 							if (e.pause)
 								yield return e;
 
@@ -600,35 +633,35 @@ namespace Defective.JSON {
 
 						break;
 					case '}':
-						if (!ParseObjectEnd(inputString, openQuote, isValue, container, startOffset, lastValidOffset)) {
+						if (!ParseObjectEnd(inputString, offset, openQuote, isValue, container, startOffset, lastValidOffset, maxDepth, storeExcessLevels, depth, ref bakeDepth)) {
 							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case ']':
-						if (!ParseArrayEnd(inputString, openQuote, isEmptyArray, isValue, container, startOffset, lastValidOffset)) {
+						if (!ParseArrayEnd(inputString, offset, openQuote, isEmptyArray, isValue, container, startOffset, lastValidOffset, maxDepth, storeExcessLevels, depth, ref bakeDepth)) {
 							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case '"':
-						if (!ParseQuote(inputString, ref openQuote, ref isValue, container, offset, ref quoteStart, ref quoteEnd)) {
+						if (!ParseQuote(inputString, ref openQuote, ref isValue, container, offset, ref quoteStart, ref quoteEnd, bakeDepth)) {
 							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case ':':
-						if (!ParseColon(inputString, openQuote, ref isValue, container, ref startOffset, offset, quoteStart, quoteEnd)) {
+						if (!ParseColon(inputString, openQuote, ref isValue, container, ref startOffset, offset, quoteStart, quoteEnd, bakeDepth)) {
 							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
 
 						break;
 					case ',':
-						if (!ParseComma(inputString, openQuote, ref isValue, container, ref startOffset, offset, lastValidOffset)) {
+						if (!ParseComma(inputString, openQuote, ref isValue, container, ref startOffset, offset, lastValidOffset, bakeDepth)) {
 							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
@@ -745,9 +778,22 @@ namespace Defective.JSON {
 			}
 		}
 
-		static bool ParseObjectEnd(string inputString, bool openQuote, bool isValue, JSONObject container, int startOffset, int lastValidOffset) {
+		static bool ParseObjectEnd(string inputString, int offset, bool openQuote, bool isValue, JSONObject container,
+			int startOffset, int lastValidOffset, int maxDepth, bool storeExcessLevels, int depth, ref int bakeDepth) {
 			if (openQuote)
 				return true;
+
+			if (maxDepth >= 0 && depth >= maxDepth) {
+				bakeDepth--;
+				if (bakeDepth == 0) {
+					SafeAddChild(container,
+						storeExcessLevels
+							? CreateBakedObject(inputString.Substring(startOffset, offset - startOffset))
+							: nullObject);
+				}
+
+				return true;
+			}
 
 			if (isValue) {
 				if (container == null) {
@@ -764,9 +810,22 @@ namespace Defective.JSON {
 			return false;
 		}
 
-		static bool ParseArrayEnd(string inputString, bool openQuote, bool isEmptyArray, bool isValue, JSONObject container, int startOffset, int lastValidOffset) {
+		static bool ParseArrayEnd(string inputString, int offset, bool openQuote, bool isEmptyArray, bool isValue, JSONObject container,
+			int startOffset, int lastValidOffset, int maxDepth, bool storeExcessLevels, int depth, ref int bakeDepth) {
 			if (openQuote)
 				return true;
+
+			if (maxDepth >= 0 && depth >= maxDepth) {
+				bakeDepth--;
+				if (bakeDepth == 0) {
+					SafeAddChild(container,
+						storeExcessLevels
+							? CreateBakedObject(inputString.Substring(startOffset, offset - startOffset))
+							: nullObject);
+				}
+
+				return true;
+			}
 
 			if (isEmptyArray) {
 				return false;
@@ -787,12 +846,13 @@ namespace Defective.JSON {
 			return false;
 		}
 
-		static bool ParseQuote(string inputString, ref bool openQuote, ref bool isValue, JSONObject container, int offset, ref int quoteStart, ref int quoteEnd) {
+		static bool ParseQuote(string inputString, ref bool openQuote, ref bool isValue, JSONObject container, int offset,
+			ref int quoteStart, ref int quoteEnd, int bakeDepth) {
 			if (openQuote) {
 				quoteEnd = offset - 1;
 				openQuote = false;
 
-				if (isValue) {
+				if (isValue && bakeDepth <= 0) {
 					if (container == null) {
 						Debug.LogError("Parsing error: encountered string with no container object");
 						return false;
@@ -810,8 +870,9 @@ namespace Defective.JSON {
 			return true;
 		}
 
-		static bool ParseColon(string inputString, bool openQuote, ref bool isValue, JSONObject container, ref int startOffset, int offset, int quoteStart, int quoteEnd) {
-			if (openQuote)
+		static bool ParseColon(string inputString, bool openQuote, ref bool isValue, JSONObject container,
+			ref int startOffset,int offset, int quoteStart, int quoteEnd, int bakeDepth) {
+			if (openQuote || bakeDepth > 0)
 				return true;
 
 			if (container == null) {
@@ -832,8 +893,9 @@ namespace Defective.JSON {
 			return true;
 		}
 
-		static bool ParseComma(string inputString, bool openQuote, ref bool isValue, JSONObject container, ref int startOffset, int offset, int lastValidOffset) {
-			if (openQuote)
+		static bool ParseComma(string inputString, bool openQuote, ref bool isValue, JSONObject container,
+			ref int startOffset, int offset, int lastValidOffset, int bakeDepth) {
+			if (openQuote || bakeDepth > 0)
 				return true;
 
 			if (isValue) {
@@ -910,11 +972,9 @@ namespace Defective.JSON {
 				return;
 
 			// Convert to array to support list
-			if (type != Type.Array) {
-				type = Type.Array;
-				if (list == null)
-					list = new List<JSONObject>();
-			}
+			type = Type.Array;
+			if (list == null)
+				list = new List<JSONObject>();
 
 			list.Add(jsonObject);
 		}
@@ -1286,14 +1346,16 @@ namespace Defective.JSON {
 
 		public IEnumerable BakeAsync() {
 			if (type != Type.Baked) {
-				foreach (var s in PrintAsync()) {
-					if (s == null)
-						yield return null;
-					else
-						stringValue = s;
-				}
+				var builder = new StringBuilder();
+				using (var enumerator = PrintAsync(builder).GetEnumerator()) {
+					while (enumerator.MoveNext()) {
+						if (enumerator.Current)
+							yield return null;
+					}
 
-				type = Type.Baked;
+					stringValue = builder.ToString();
+					type = Type.Baked;
+				}
 			}
 		}
 
@@ -1730,8 +1792,8 @@ namespace Defective.JSON {
 			return result;
 		}
 
-		public static implicit operator bool(JSONObject o) {
-			return o != null;
+		public static implicit operator bool(JSONObject jsonObject) {
+			return jsonObject != null;
 		}
 
 #if JSONOBJECT_POOLING

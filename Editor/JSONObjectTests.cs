@@ -55,6 +55,32 @@ namespace Defective.JSON.Tests {
 			ValidateJsonObject(JSONObject.Create(TestStrings.JsonString, start, end), substring);
 		}
 
+		[Test]
+		public void MaxDepthWithoutExcessLevels() {
+			var jsonObject = JSONObject.Create(TestStrings.JsonString, maxDepth: 2, storeExcessLevels: false);
+			var testObject = jsonObject["TestObject"];
+			var someObject = testObject["SomeObject"];
+			Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Null));
+
+			var nestedArray = testObject["NestedArray"];
+			Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Null));
+		}
+
+		[Test]
+		public void MaxDepthWithExcessLevels() {
+			var jsonObject = JSONObject.Create(TestStrings.JsonString, maxDepth: 2, storeExcessLevels: true);
+			var testObject = jsonObject["TestObject"];
+			var someObject = testObject["SomeObject"];
+			Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Baked));
+			Assert.That(someObject.stringValue, Is.EqualTo(TestStrings.SomeObject));
+
+			var nestedArray = testObject["NestedArray"];
+			Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Baked));
+			Assert.That(nestedArray.stringValue, Is.EqualTo(TestStrings.NestedArray));
+
+			ValidateJsonObject(jsonObject, TestStrings.JsonString);
+		}
+
 		[TestCase(long.MaxValue)]
 		[TestCase(long.MinValue)]
 		[TestCase(0)]
