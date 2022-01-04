@@ -88,6 +88,9 @@ namespace Defective.JSON {
 			}
 		}
 
+		public delegate void FieldNotFound(string name);
+		public delegate void GetFieldResponse(JSONObject jsonObject);
+
 		public bool isContainer {
 			get { return type == Type.Array || type == Type.Object; }
 		}
@@ -96,10 +99,7 @@ namespace Defective.JSON {
 
 		public int count {
 			get {
-				if (list == null)
-					return 0;
-
-				return list.Count;
+				return list == null ? 0 : list.Count;
 			}
 		}
 
@@ -230,6 +230,11 @@ namespace Defective.JSON {
 			list = new List<JSONObject>(objects);
 		}
 
+		public JSONObject(List<JSONObject> objects) {
+			type = Type.Array;
+			list = objects;
+		}
+
 		/// <summary>
 		/// Convenience function for creating a JSONObject containing a string.
 		/// This is not part of the constructor so that malformed JSON data doesn't just turn into a string object
@@ -259,7 +264,7 @@ namespace Defective.JSON {
 
 			stringValue = other.stringValue;
 #if JSONOBJECT_USE_FLOAT
-			floatValue = jsonObject.floatValue;
+			floatValue = other.floatValue;
 #else
 			doubleValue = other.doubleValue;
 #endif
@@ -387,6 +392,22 @@ namespace Defective.JSON {
 			return jsonObject;
 		}
 
+		public static JSONObject Create(JSONObject[] objects) {
+			var jsonObject = Create();
+			jsonObject.type = Type.Array;
+			jsonObject.list = new List<JSONObject>(objects);
+
+			return jsonObject;
+		}
+
+		public static JSONObject Create(List<JSONObject> objects) {
+			var jsonObject = Create();
+			jsonObject.type = Type.Array;
+			jsonObject.list = objects;
+
+			return jsonObject;
+		}
+
 		public static JSONObject Create(Dictionary<string, string> dictionary) {
 			var jsonObject = Create();
 			jsonObject.type = Type.Object;
@@ -397,6 +418,21 @@ namespace Defective.JSON {
 			foreach (var kvp in dictionary) {
 				keys.Add(kvp.Key);
 				list.Add(CreateStringObject(kvp.Value));
+			}
+
+			return jsonObject;
+		}
+
+		public static JSONObject Create(Dictionary<string, JSONObject> dictionary) {
+			var jsonObject = Create();
+			jsonObject.type = Type.Object;
+			var keys = new List<string>();
+			jsonObject.keys = keys;
+			var list = new List<JSONObject>();
+			jsonObject.list = list;
+			foreach (var kvp in dictionary) {
+				keys.Add(kvp.Key);
+				list.Add(kvp.Value);
 			}
 
 			return jsonObject;
@@ -448,10 +484,7 @@ namespace Defective.JSON {
 			if (endOffset == -1)
 				endOffset = stringLength - 1;
 
-			if (string.IsNullOrEmpty(inputString) || endOffset >= stringLength || offset >= endOffset)
-				return false;
-
-			return true;
+			return !string.IsNullOrEmpty(inputString) && endOffset < stringLength && offset < endOffset;
 		}
 
 		static void Parse(string inputString, ref int offset, int endOffset, JSONObject container,
@@ -795,19 +828,19 @@ namespace Defective.JSON {
 				return true;
 			}
 
-			if (isValue) {
-				if (container == null) {
-					Debug.LogError("Parsing error: encountered `}` with no container object");
-					return false;
-				}
+			if (!isValue)
+				return false;
 
-				var child = Create();
-				child.ParseValue(inputString, startOffset, lastValidOffset);
-				SafeAddChild(container, child);
+			if (container == null) {
+				Debug.LogError("Parsing error: encountered `}` with no container object");
 				return false;
 			}
 
+			var child = Create();
+			child.ParseValue(inputString, startOffset, lastValidOffset);
+			SafeAddChild(container, child);
 			return false;
+
 		}
 
 		static bool ParseArrayEnd(string inputString, int offset, bool openQuote, bool isEmptyArray, bool isValue, JSONObject container,
@@ -831,19 +864,19 @@ namespace Defective.JSON {
 				return false;
 			}
 
-			if (isValue) {
-				if (container == null) {
-					Debug.LogError("Parsing error: encountered `]` with no container object");
-					return false;
-				}
+			if (!isValue)
+				return false;
 
-				var child = Create();
-				child.ParseValue(inputString, startOffset, lastValidOffset);
-				SafeAddChild(container, child);
+			if (container == null) {
+				Debug.LogError("Parsing error: encountered `]` with no container object");
 				return false;
 			}
 
+			var child = Create();
+			child.ParseValue(inputString, startOffset, lastValidOffset);
+			SafeAddChild(container, child);
 			return false;
+
 		}
 
 		static bool ParseQuote(string inputString, ref bool openQuote, ref bool isValue, JSONObject container, int offset,
@@ -852,16 +885,17 @@ namespace Defective.JSON {
 				quoteEnd = offset - 1;
 				openQuote = false;
 
-				if (isValue && bakeDepth <= 0) {
-					if (container == null) {
-						Debug.LogError("Parsing error: encountered string with no container object");
-						return false;
-					}
+				if (!isValue || bakeDepth > 0)
+					return true;
 
-					var child = CreateStringObject(UnEscapeString(inputString.Substring(quoteStart, quoteEnd - quoteStart)));
-					SafeAddChild(container, child);
-					isValue = false;
+				if (container == null) {
+					Debug.LogError("Parsing error: encountered string with no container object");
+					return false;
 				}
+
+				var child = CreateStringObject(UnEscapeString(inputString.Substring(quoteStart, quoteEnd - quoteStart)));
+				SafeAddChild(container, child);
+				isValue = false;
 			} else {
 				quoteStart = offset;
 				openQuote = true;
@@ -937,6 +971,10 @@ namespace Defective.JSON {
 
 		public bool isObject {
 			get { return type == Type.Object; }
+		}
+
+		public bool isBaked {
+			get { return type == Type.Baked; }
 		}
 
 		public void Add(bool value) {
@@ -1069,10 +1107,6 @@ namespace Defective.JSON {
 				keys.Remove(name);
 			}
 		}
-
-		public delegate void FieldNotFound(string name);
-
-		public delegate void GetFieldResponse(JSONObject jsonObject);
 
 		public bool GetField(out bool field, string name, bool fallback) {
 			field = fallback;
@@ -1264,7 +1298,7 @@ namespace Defective.JSON {
 			if (keys != null)
 				keys.Clear();
 
-			stringValue = "";
+			stringValue = null;
 			longValue = 0;
 			boolValue = false;
 			isInteger = false;
@@ -1338,24 +1372,27 @@ namespace Defective.JSON {
 		}
 
 		public void Bake() {
-			if (type != Type.Baked) {
-				stringValue = Print();
-				type = Type.Baked;
-			}
+			if (type == Type.Baked)
+				return;
+
+			stringValue = Print();
+			type = Type.Baked;
 		}
 
 		public IEnumerable BakeAsync() {
-			if (type != Type.Baked) {
-				var builder = new StringBuilder();
-				using (var enumerator = PrintAsync(builder).GetEnumerator()) {
-					while (enumerator.MoveNext()) {
-						if (enumerator.Current)
-							yield return null;
-					}
+			if (type == Type.Baked)
+				yield break;
 
-					stringValue = builder.ToString();
-					type = Type.Baked;
+			
+			var builder = new StringBuilder();
+			using (var enumerator = PrintAsync(builder).GetEnumerator()) {
+				while (enumerator.MoveNext()) {
+					if (enumerator.Current)
+						yield return null;
 				}
+
+				stringValue = builder.ToString();
+				type = Type.Baked;
 			}
 		}
 

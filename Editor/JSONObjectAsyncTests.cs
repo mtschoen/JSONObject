@@ -135,6 +135,8 @@ namespace Defective.JSON.Tests {
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
 		[TestCase(0)]
+		[TestCase(0.01f)]
+		[TestCase(13.37f)]
 		[TestCase(42)]
 		public void EncodeFloat(float value) {
 			var jsonObject = new JSONObject();
@@ -157,6 +159,8 @@ namespace Defective.JSON.Tests {
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
 		[TestCase(0)]
+		[TestCase(0.01d)]
+		[TestCase(13.37d)]
 		[TestCase(42)]
 		public void EncodeDouble(double value) {
 			var jsonObject = new JSONObject();
@@ -186,6 +190,8 @@ namespace Defective.JSON.Tests {
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
 		[TestCase(0)]
+		[TestCase(0.01f)]
+		[TestCase(13.37f)]
 		[TestCase(42)]
 		public void EncodeAndParseFloat(float value) {
 			var jsonText = string.Format(TestStrings.JsonFormatFloat, value);
@@ -200,6 +206,8 @@ namespace Defective.JSON.Tests {
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
 		[TestCase(0)]
+		[TestCase(0.01d)]
+		[TestCase(13.37d)]
 		[TestCase(42)]
 		public void EncodeAndParseDouble(double value) {
 			var jsonText = string.Format(TestStrings.JsonFormatFloat, value);
@@ -264,6 +272,20 @@ namespace Defective.JSON.Tests {
 					}
 				}
 			}
+		}
+
+		[Test]
+		public void Bake() {
+			var jsonObject = new JSONObject(TestStrings.JsonString);
+			foreach (var unused in jsonObject["TestObject"]["SomeObject"].BakeAsync()) { }
+			var testObject = jsonObject["TestObject"];
+			var someObject = testObject["SomeObject"];
+			Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Baked));
+			Assert.That(someObject.stringValue, Is.EqualTo(TestStrings.SomeObject));
+
+			var nestedArray = testObject["NestedArray"];
+			Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Array));
+			ValidateJsonObject(jsonObject, TestStrings.JsonString);
 		}
 
 #if JSONOBJECT_POOLING
