@@ -371,12 +371,10 @@ namespace Defective.JSON {
 		/// <param name="offset">An offset into the string at which to start parsing</param>
 		/// <param name="length">The length of the string after the offset to parse
 		/// Specify a length of -1 (default) to use the full string length</param>
-		/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
-		/// parse "a string" into a string-type </param>
 		/// <returns>A JSONObject containing the parsed data</returns>
-		public static JSONObject Create(string jsonString, int offset = 0, int length = -1, bool strict = false) {
+		public static JSONObject Create(string jsonString, int offset = 0, int length = -1) {
 			var jsonObject = Create();
-			Parse(jsonString, ref offset, length, jsonObject, false, true, strict);
+			Parse(jsonString, ref offset, length, jsonObject);
 			return jsonObject;
 		}
 
@@ -411,15 +409,12 @@ namespace Defective.JSON {
 		/// <param name="maxDepth">The maximum depth for the parser to search.  Set this to to 1 for the first level,
 		/// 2 for the first 2 levels, etc.  It defaults to -2 because -1 is the depth value that is parsed (see below)</param>
 		/// <param name="storeExcessLevels">Whether to store levels beyond maxDepth in baked JSONObjects</param>
-		/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
-		/// parse "a string" into a string-type </param>
 		/// <returns>A JSONObject containing the parsed data</returns>
-		public static IEnumerable<ParseResult> CreateAsync(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -2, bool storeExcessLevels = false,
-			bool strict = false) {
+		public static IEnumerable<ParseResult> CreateAsync(string jsonString, int offset = 0, int endOffset = -1, int maxDepth = -2, bool storeExcessLevels = false) {
 			var jsonObject = Create();
 			PrintWatch.Reset();
 			PrintWatch.Start();
-			foreach (var e in ParseAsync(jsonString, offset, endOffset, jsonObject, false, true, strict)) {
+			foreach (var e in ParseAsync(jsonString, offset, endOffset, jsonObject)) {
 				if (e.pause)
 					yield return e;
 
@@ -438,40 +433,23 @@ namespace Defective.JSON {
 		/// <param name="offset">An offset into the string at which to start parsing</param>
 		/// <param name="endOffset">The length of the string after the offset to parse
 		/// Specify a length of -1 (default) to use the full string length</param>
-		/// <param name="strict">Whether to be strict in the parsing. For example, non-strict parsing will successfully
-		/// parse "a string" into a string-type </param>
-		public JSONObject(string jsonString, int offset = 0, int endOffset = -1, bool strict = false) {
-			Parse(jsonString, ref offset, endOffset, this, false, true, strict);
+		public JSONObject(string jsonString, int offset = 0, int endOffset = -1) {
+			Parse(jsonString, ref offset, endOffset, this);
 		}
 
-		static bool BeginParse(string inputString, int offset, bool strict) {
+		static bool BeginParse(string inputString, int offset, ref int endOffset) {
 			var stringLength = inputString.Length;
-			if (string.IsNullOrEmpty(inputString) || offset >= stringLength) {
+			if (endOffset == -1)
+				endOffset = stringLength - offset;
+
+			if (string.IsNullOrEmpty(inputString) || endOffset >= stringLength || offset >= endOffset)
 				return false;
-			}
-
-			var firstCharacter = inputString[offset];
-			if (strict) {
-				if (firstCharacter != '[' && firstCharacter != '{') {
-#if USING_UNITY
-					Debug.LogWarning
-#else
-					Debug.WriteLine
-#endif
-						("Improper (strict) JSON formatting.  First character must be [ or {");
-
-					return false;
-				}
-			}
 
 			return true;
 		}
 
-		static void Parse(string inputString, ref int offset, int endOffset, JSONObject container, bool isValue, bool isRoot, bool strict) {
-			if (endOffset == -1)
-				endOffset = inputString.Length - offset;
-
-			if (!BeginParse(inputString, offset, strict))
+		static void Parse(string inputString, ref int offset, int endOffset, JSONObject container, bool isValue = false, bool isRoot = true) {
+			if (!BeginParse(inputString, offset, ref endOffset))
 				return;
 
 			var startOffset = offset;
@@ -505,7 +483,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Object;
-						Parse(inputString, ref offset, endOffset, newContainer, false, false, false);
+						Parse(inputString, ref offset, endOffset, newContainer, false, false);
 						break;
 					case '[':
 						if (openQuote)
@@ -519,7 +497,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Array;
-						Parse(inputString, ref offset, endOffset, newContainer, true, false, false);
+						Parse(inputString, ref offset, endOffset, newContainer, true, false);
 						break;
 					case '}':
 						if (!ParseObjectEnd(inputString, openQuote, isValue, container, startOffset, lastValidOffset))
@@ -552,11 +530,8 @@ namespace Defective.JSON {
 			}
 		}
 
-		static IEnumerable<ParseResult> ParseAsync(string inputString, int offset, int endOffset, JSONObject container, bool isValue, bool isRoot, bool strict) {
-			if (endOffset == -1)
-				endOffset = inputString.Length - offset;
-
-			if (!BeginParse(inputString, offset, strict))
+		static IEnumerable<ParseResult> ParseAsync(string inputString, int offset, int endOffset, JSONObject container, bool isValue = false, bool isRoot = true) {
+			if (!BeginParse(inputString, offset, ref endOffset))
 				yield break;
 
 			var startOffset = offset;
@@ -596,7 +571,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Object;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, false, false, false)) {
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, false, false)) {
 							if (e.pause)
 								yield return e;
 
@@ -616,7 +591,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Array;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, true, false, false)) {
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, true, false)) {
 							if (e.pause)
 								yield return e;
 
