@@ -26,6 +26,7 @@ THE SOFTWARE.
 using System.Collections.Generic;
 using System.Text;
 using NUnit.Framework;
+using UnityEngine;
 using TestStrings = Defective.JSON.Tests.JSONObjectTestStrings;
 
 namespace Defective.JSON.Tests {
@@ -96,12 +97,14 @@ namespace Defective.JSON.Tests {
 		[TestCase(float.NaN)]
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
+		[TestCase(float.Epsilon)]
+		[TestCase(-float.Epsilon)]
 		[TestCase(0)]
 		[TestCase(0.01f)]
 		[TestCase(13.37f)]
 		[TestCase(42)]
 		public void ParseFloat(float value) {
-			var jsonObject = new JSONObject(string.Format(TestStrings.JsonFormatFloat, value));
+			var jsonObject = new JSONObject(string.Format(TestStrings.JsonFormatFloat, value.ToString("R")));
 			Assert.That(jsonObject[TestStrings.FieldName].floatValue, Is.EqualTo(value));
 		}
 
@@ -110,14 +113,18 @@ namespace Defective.JSON.Tests {
 		[TestCase(double.NaN)]
 		[TestCase(double.MaxValue)]
 		[TestCase(double.MinValue)]
+		[TestCase(double.Epsilon)]
+		[TestCase(-double.Epsilon)]
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
+		[TestCase(float.Epsilon)]
+		[TestCase(-float.Epsilon)]
 		[TestCase(0)]
 		[TestCase(0.01d)]
 		[TestCase(13.37d)]
 		[TestCase(42)]
 		public void ParseDouble(double value) {
-			var jsonObject = new JSONObject(string.Format(TestStrings.JsonFormatFloat, value));
+			var jsonObject = new JSONObject(string.Format(TestStrings.JsonFormatFloat, value.ToString("R")));
 
 #if JSONOBJECT_USE_FLOAT
 			Assert.That(jsonObject[TestStrings.FieldName].floatValue, Is.EqualTo((float) value));
@@ -141,6 +148,8 @@ namespace Defective.JSON.Tests {
 		[TestCase(float.NaN)]
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
+		[TestCase(float.Epsilon)]
+		[TestCase(-float.Epsilon)]
 		[TestCase(0)]
 		[TestCase(0.01f)]
 		[TestCase(13.37f)]
@@ -155,7 +164,7 @@ namespace Defective.JSON.Tests {
 			var expected = (double) value;
 #endif
 
-			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
+			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected.ToString("R")));
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -163,8 +172,12 @@ namespace Defective.JSON.Tests {
 		[TestCase(double.NaN)]
 		[TestCase(double.MaxValue)]
 		[TestCase(double.MinValue)]
+		[TestCase(double.Epsilon)]
+		[TestCase(-double.Epsilon)]
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
+		[TestCase(float.Epsilon)]
+		[TestCase(-float.Epsilon)]
 		[TestCase(0)]
 		[TestCase(0.01d)]
 		[TestCase(13.37d)]
@@ -179,7 +192,7 @@ namespace Defective.JSON.Tests {
 			var expected = value;
 #endif
 
-			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
+			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected.ToString("R")));
 		}
 
 		[TestCase(long.MaxValue)]
@@ -195,12 +208,14 @@ namespace Defective.JSON.Tests {
 		[TestCase(float.NaN)]
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
+		[TestCase(float.Epsilon)]
+		[TestCase(-float.Epsilon)]
 		[TestCase(0)]
 		[TestCase(0.01f)]
 		[TestCase(13.37f)]
 		[TestCase(42)]
 		public void EncodeAndParseFloat(float value) {
-			ValidateJsonString(string.Format(TestStrings.JsonFormatFloat, value));
+			ValidateJsonString(string.Format(TestStrings.JsonFormatFloat, value.ToString("R")));
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -208,14 +223,18 @@ namespace Defective.JSON.Tests {
 		[TestCase(double.NaN)]
 		[TestCase(double.MaxValue)]
 		[TestCase(double.MinValue)]
+		[TestCase(double.Epsilon)]
+		[TestCase(-double.Epsilon)]
 		[TestCase(float.MaxValue)]
 		[TestCase(float.MinValue)]
+		[TestCase(float.Epsilon)]
+		[TestCase(-float.Epsilon)]
 		[TestCase(0)]
 		[TestCase(0.01d)]
 		[TestCase(13.37d)]
 		[TestCase(42)]
 		public void EncodeAndParseDouble(double value) {
-			var jsonText = string.Format(TestStrings.JsonFormatFloat, value);
+			var jsonText = string.Format(TestStrings.JsonFormatFloat, value.ToString("R"));
 
 #if JSONOBJECT_USE_FLOAT
 			var expected = string.Format(TestStrings.JsonFormatFloat, (float) value);

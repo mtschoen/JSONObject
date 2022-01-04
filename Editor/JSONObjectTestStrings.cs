@@ -29,6 +29,6 @@ namespace Defective.JSON.Tests {
 		public const string FieldName = "TestField";
 		public const string JsonFormat = "{{\"" + FieldName + "\":{0}}}";
 		public const string JsonFormatString = "{{\"" + FieldName + "\":\"{0}\"}}";
-		public const string JsonFormatFloat = "{{\"" + FieldName + "\":{0:R}}}";
+		public const string JsonFormatFloat = "{{\"" + FieldName + "\":{0}}}";
 	}
 }

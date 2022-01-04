@@ -148,7 +148,7 @@ namespace Defective.JSON.Tests {
 			var expected = (double) value;
 #endif
 
-			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
+			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected.ToString("R")));
 		}
 
 		[TestCase(double.NegativeInfinity)]
@@ -172,7 +172,7 @@ namespace Defective.JSON.Tests {
 			var expected = value;
 #endif
 
-			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected));
+			ValidateJsonObject(jsonObject, string.Format(TestStrings.JsonFormatFloat, expected.ToString("R")));
 		}
 
 		[TestCase(long.MaxValue)]
@@ -194,7 +194,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(13.37f)]
 		[TestCase(42)]
 		public void EncodeAndParseFloat(float value) {
-			var jsonText = string.Format(TestStrings.JsonFormatFloat, value);
+			var jsonText = string.Format(TestStrings.JsonFormatFloat, value.ToString("R"));
 			ValidateJsonString(jsonText, jsonText);
 		}
 
@@ -210,7 +210,7 @@ namespace Defective.JSON.Tests {
 		[TestCase(13.37d)]
 		[TestCase(42)]
 		public void EncodeAndParseDouble(double value) {
-			var jsonText = string.Format(TestStrings.JsonFormatFloat, value);
+			var jsonText = string.Format(TestStrings.JsonFormatFloat, value.ToString("R"));
 
 #if JSONOBJECT_USE_FLOAT
 			var expected = string.Format(TestStrings.JsonFormatFloat, (float) value);

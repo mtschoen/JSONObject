@@ -36,7 +36,9 @@ namespace Defective.JSON.Tests {
 		public void Vector2Template(float x, float y) {
 			var value = new Vector2(x, y);
 			var jsonObject = value.ToJson();
-			Assert.That(jsonObject.ToVector2(), Is.EqualTo(value));
+			var result = jsonObject.ToVector2();
+			Assert.That(result.x, Is.EqualTo(x));
+			Assert.That(result.y, Is.EqualTo(y));
 		}
 
 		[TestCase(0, 0)]
@@ -47,7 +49,9 @@ namespace Defective.JSON.Tests {
 		public void Vector3Template(float x, float y) {
 			var value = new Vector3(x, y);
 			var jsonObject = value.ToJson();
-			Assert.That(jsonObject.ToVector3(), Is.EqualTo(value));
+			var result = jsonObject.ToVector3();
+			Assert.That(result.x, Is.EqualTo(x));
+			Assert.That(result.y, Is.EqualTo(y));
 		}
 
 		[TestCase(0, 0)]
@@ -58,7 +62,9 @@ namespace Defective.JSON.Tests {
 		public void Vector4Template(float x, float y) {
 			var value = new Vector4(x, y);
 			var jsonObject = value.ToJson();
-			Assert.That(jsonObject.ToVector4(), Is.EqualTo(value));
+			var result = jsonObject.ToVector4();
+			Assert.That(result.x, Is.EqualTo(x));
+			Assert.That(result.y, Is.EqualTo(y));
 		}
 
 		[TestCase(0, 0, 0, 0)]
@@ -70,7 +76,10 @@ namespace Defective.JSON.Tests {
 		public void Matrix4x4Template(float fov, float aspect, float zNear, float zFar) {
 			var value = Matrix4x4.Perspective(fov, aspect, zNear, zFar);
 			var jsonObject = value.ToJson();
-			Assert.That(jsonObject.ToMatrix4x4(), Is.EqualTo(value));
+			var result = jsonObject.ToMatrix4x4();
+			for (var i = 0; i < 16; i++) {
+				Assert.That(result[i], Is.EqualTo(value[i]));
+			}
 		}
 
 		[TestCase(0, 0, 0, 0)]
