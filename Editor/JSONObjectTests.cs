@@ -25,7 +25,6 @@ THE SOFTWARE.
 #if UNITY_5_6_OR_NEWER && JSONOBJECT_TESTS
 using System.Text;
 using NUnit.Framework;
-using UnityEngine;
 using TestStrings = Defective.JSON.Tests.JSONObjectTestStrings;
 
 namespace Defective.JSON.Tests {
@@ -46,6 +45,14 @@ namespace Defective.JSON.Tests {
 		[Test]
 		public void PrettyInputMatchesPrettyOutput() {
 			ValidateJsonString(TestStrings.PrettyJsonString, true);
+		}
+
+		[Test]
+		public void SubStringInputMatchesOutput() {
+			const int start = 14;
+			var end = TestStrings.JsonString.Length - 1;
+			var substring = TestStrings.JsonString.Substring(start, end - start);
+			ValidateJsonObject(JSONObject.Create(TestStrings.JsonString, start, end), substring);
 		}
 
 		[TestCase(long.MaxValue)]

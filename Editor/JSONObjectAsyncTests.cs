@@ -62,6 +62,25 @@ namespace Defective.JSON.Tests {
 		}
 
 		[Test]
+		public void SubStringInputMatchesOutput() {
+			var start = 14;
+			var end = TestStrings.JsonString.Length - 1;
+			var substring = TestStrings.JsonString.Substring(start, end - start);
+			using (var parser = JSONObject.CreateAsync(TestStrings.JsonString, start, end).GetEnumerator()) {
+				var offset = 0;
+				while (parser.MoveNext()) {
+					var newOffset = parser.Current.offset;
+					Assert.That(newOffset, Is.GreaterThan(offset));
+					offset = newOffset;
+				}
+
+				var result = parser.Current;
+				Assert.That(result.offset, Is.EqualTo(end));
+				ValidateJsonObject(result.result, substring);
+			}
+		}
+
+		[Test]
 		public void PrettyInputMatchesPrettyOutput() {
 			ValidateJsonString(TestStrings.PrettyJsonString, TestStrings.PrettyJsonString, true);
 		}
