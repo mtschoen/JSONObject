@@ -20,8 +20,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#if UNITY_5_6_OR_NEWER && JSONOBJECT_TESTS
-
 namespace Defective.JSON.Tests {
 	static class JSONObjectTestStrings {
 		public const string SomeObject = "{\"SomeNumber\":42,\"SomeFloat\":13.37,\"SomeBool\":true,\"SomeNull\":null}";
@@ -34,4 +32,3 @@ namespace Defective.JSON.Tests {
 		public const string JsonFormatFloat = "{{\"" + FieldName + "\":{0:R}}}";
 	}
 }
-#endif
