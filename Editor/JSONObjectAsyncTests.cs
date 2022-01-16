@@ -29,8 +29,23 @@ using TestStrings = Defective.JSON.Tests.JSONObjectTestStrings;
 
 namespace Defective.JSON.Tests {
 	class JSONObjectAsyncTests {
+		static void CheckJsonLists(JSONObject jsonObject) {
+			if (jsonObject.type != JSONObject.Type.Object)
+				return;
+
+			var list = jsonObject.list;
+			if (list == null)
+				return;
+
+			Assert.That(list.Count, Is.EqualTo(jsonObject.keys.Count));
+			foreach (var child in jsonObject.list) {
+				CheckJsonLists(child);
+			}
+		}
+
 		static void ValidateJsonObject(JSONObject jsonObject, string expected, bool pretty = false) {
 			Assert.IsNotNull(jsonObject);
+			CheckJsonLists(jsonObject);
 			using (var printer = jsonObject.PrintAsync(pretty).GetEnumerator()) {
 				while (printer.MoveNext()) { }
 				Assert.That(printer.Current, Is.EqualTo(expected));
@@ -56,9 +71,11 @@ namespace Defective.JSON.Tests {
 			}
 		}
 
-		[Test]
-		public void InputMatchesOutput() {
-			ValidateJsonString(TestStrings.JsonString, TestStrings.JsonString);
+		[TestCase(TestStrings.SomeObject)]
+		[TestCase(TestStrings.NestedArray)]
+		[TestCase(TestStrings.JsonString)]
+		public void InputMatchesOutput(string jsonString) {
+			ValidateJsonString(jsonString, jsonString);
 		}
 
 		[Test]
@@ -80,37 +97,60 @@ namespace Defective.JSON.Tests {
 			}
 		}
 
-		[Test]
-		public void MaxDepthWithoutExcessLevels() {
-			using (var parser = JSONObject.CreateAsync(TestStrings.JsonString, maxDepth: 2, storeExcessLevels: false).GetEnumerator()) {
+		[TestCase(0, true)]
+		[TestCase(1, true)]
+		[TestCase(2, true)]
+		[TestCase(3, true)]
+		[TestCase(4, true)]
+		[TestCase(5, true)]
+		[TestCase(0, false)]
+		[TestCase(1, false)]
+		[TestCase(2, false)]
+		[TestCase(3, false)]
+		[TestCase(4, false)]
+		[TestCase(5, false)]
+		public void MaxDepthWithExcessLevels(int maxDepth, bool storeExcessLevels) {
+			using (var parser = JSONObject.CreateAsync(TestStrings.JsonString, maxDepth: maxDepth, storeExcessLevels: storeExcessLevels).GetEnumerator()) {
 				while (parser.MoveNext()) { }
 
 				var jsonObject = parser.Current.result;
-				var testObject = jsonObject["TestObject"];
-				var someObject = testObject["SomeObject"];
-				Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Null));
+				var expectedType = storeExcessLevels ? JSONObject.Type.Baked : JSONObject.Type.Null;
+				switch (maxDepth) {
+					case 0:
+						Assert.That(jsonObject.type, Is.EqualTo(expectedType));
+						break;
+					case 1:
+						var testObject = jsonObject["TestObject"];
+						Assert.That(testObject.type, Is.EqualTo(expectedType));
+						if (storeExcessLevels)
+							Assert.That(testObject.stringValue, Is.EqualTo(TestStrings.JsonString.Substring(14, TestStrings.JsonString.Length - 15)));
 
-				var nestedArray = testObject["NestedArray"];
-				Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Null));
-			}
-		}
+						break;
+					case 2:
+						testObject = jsonObject["TestObject"];
+						var someObject = testObject["SomeObject"];
+						Assert.That(someObject.type, Is.EqualTo(expectedType));
+						if (storeExcessLevels)
+							Assert.That(someObject.stringValue, Is.EqualTo(TestStrings.SomeObject));
 
-		[Test]
-		public void MaxDepthWithExcessLevels() {
-			using (var parser = JSONObject.CreateAsync(TestStrings.JsonString, maxDepth: 2, storeExcessLevels: true).GetEnumerator()) {
-				while (parser.MoveNext()) { }
+						var nestedArray = testObject["NestedArray"];
+						Assert.That(nestedArray.type, Is.EqualTo(expectedType));
+						if (storeExcessLevels)
+							Assert.That(nestedArray.stringValue, Is.EqualTo(TestStrings.NestedArray));
 
-				var jsonObject = parser.Current.result;
-				var testObject = jsonObject["TestObject"];
-				var someObject = testObject["SomeObject"];
-				Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Baked));
-				Assert.That(someObject.stringValue, Is.EqualTo(TestStrings.SomeObject));
+						break;
 
-				var nestedArray = testObject["NestedArray"];
-				Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Baked));
-				Assert.That(nestedArray.stringValue, Is.EqualTo(TestStrings.NestedArray));
+					case 3:
+						testObject = jsonObject["TestObject"];
+						someObject = testObject["SomeObject"];
+						Assert.That(someObject.type, Is.EqualTo(JSONObject.Type.Object));
+						nestedArray = testObject["NestedArray"];
+						Assert.That(nestedArray.type, Is.EqualTo(JSONObject.Type.Array));
+						break;
+				}
 
-				ValidateJsonObject(jsonObject, TestStrings.JsonString);
+				if (storeExcessLevels)
+					ValidateJsonObject(jsonObject, TestStrings.JsonString);
 			}
 		}
 
