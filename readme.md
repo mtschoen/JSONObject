@@ -9,7 +9,7 @@ I came across the need to send structured data to and from a server on one of my
 
 # Usage
 
-Users should not have to modify the JSONObject class themselves, and must follow the very simple proceedures outlined below:
+Users should not have to modify the JSONObject class themselves, and must follow the very simple procedures outlined below:
 
 Sample data (in JSON format):
 ```JSON
@@ -153,7 +153,7 @@ I've added a string and int [] index to the class, so you can now retrieve data 
 void Test() {
 	var jsonObject = new JSONObject("{\"field\":[0,1,2]");
 	var array = jsonObject["field"];
-	Debug.Log(array[2].intValue); //Should ouptut "2"
+	Debug.Log(array[2].intValue); //Should output "2"
 }
 ```
 
@@ -182,7 +182,7 @@ Big update!
 
 * Better GC performance.  Enough of that garbage!
 	* Remaining culprits are internal garbage from `StringBuilder.Append`/`AppendFormat`, `String.Substring`, `List.Add`/`GrowIfNeeded`, `Single.ToString`
-* Added asynchronous `Stringily` function for serializing large amounts of data at runtime without frame drops
+* Added asynchronous `Stringify` function for serializing large amounts of data at runtime without frame drops
 * Added `Baked` type
 * Added `MaxDepth` to parsing function
 * Various cleanup refactors recommended by ReSharper
