@@ -515,7 +515,7 @@ namespace Defective.JSON {
 		// ReSharper restore UseNameofExpression
 
 		static void Parse(string inputString, ref int offset, int endOffset, JSONObject container, int maxDepth,
-			bool storeExcessLevels, int depth = 0, bool isField = false, bool isRoot = true) {
+			bool storeExcessLevels, int depth = 0, bool isRoot = true) {
 			if (!BeginParse(inputString, offset, ref endOffset, container, maxDepth, storeExcessLevels))
 				return;
 
@@ -552,8 +552,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Object;
-						isField = true;
-						Parse(inputString, ref offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, isField, false);
+						Parse(inputString, ref offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, false);
 
 						break;
 					case '[':
@@ -572,7 +571,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Array;
-						Parse(inputString, ref offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, isField, false);
+						Parse(inputString, ref offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, false);
 
 						break;
 					case '}':
@@ -589,7 +588,7 @@ namespace Defective.JSON {
 						ParseQuote(ref openQuote, offset, ref quoteStart, ref quoteEnd);
 						break;
 					case ':':
-						if (!ParseColon(inputString, openQuote, ref isField, container, ref startOffset, offset, quoteStart, quoteEnd, bakeDepth))
+						if (!ParseColon(inputString, openQuote, container, ref startOffset, offset, quoteStart, quoteEnd, bakeDepth))
 							return;
 
 						break;
@@ -605,7 +604,7 @@ namespace Defective.JSON {
 		}
 
 		static IEnumerable<ParseResult> ParseAsync(string inputString, int offset, int endOffset, JSONObject container,
-			int maxDepth, bool storeExcessLevels, int depth = 0, bool isField = false, bool isRoot = true) {
+			int maxDepth, bool storeExcessLevels, int depth = 0, bool isRoot = true) {
 			if (!BeginParse(inputString, offset, ref endOffset, container, maxDepth, storeExcessLevels))
 				yield break;
 
@@ -635,7 +634,6 @@ namespace Defective.JSON {
 						if (openQuote)
 							break;
 
-						isField = false;
 						if (maxDepth >= 0 && depth >= maxDepth) {
 							bakeDepth++;
 							break;
@@ -648,8 +646,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Object;
-						isField = true;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, isField, false)) {
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, false)) {
 							if (e.pause)
 								yield return e;
 
@@ -673,7 +670,7 @@ namespace Defective.JSON {
 						}
 
 						newContainer.type = Type.Array;
-						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, isField, false)) {
+						foreach (var e in ParseAsync(inputString, offset, endOffset, newContainer, maxDepth, storeExcessLevels, depth + 1, false)) {
 							if (e.pause)
 								yield return e;
 
@@ -699,7 +696,7 @@ namespace Defective.JSON {
 						ParseQuote(ref openQuote, offset, ref quoteStart, ref quoteEnd);
 						break;
 					case ':':
-						if (!ParseColon(inputString, openQuote, ref isField, container, ref startOffset, offset, quoteStart, quoteEnd, bakeDepth)) {
+						if (!ParseColon(inputString, openQuote, container, ref startOffset, offset, quoteStart, quoteEnd, bakeDepth)) {
 							yield return new ParseResult(container, offset, false);
 							yield break;
 						}
@@ -887,7 +884,7 @@ namespace Defective.JSON {
 			}
 		}
 
-		static bool ParseColon(string inputString, bool openQuote, ref bool isField, JSONObject container,
+		static bool ParseColon(string inputString, bool openQuote, JSONObject container,
 			ref int startOffset,int offset, int quoteStart, int quoteEnd, int bakeDepth) {
 			if (openQuote || bakeDepth > 0)
 				return true;
@@ -905,7 +902,6 @@ namespace Defective.JSON {
 
 			container.keys.Add(inputString.Substring(quoteStart, quoteEnd - quoteStart));
 			startOffset = offset;
-			isField = false;
 
 			return true;
 		}
