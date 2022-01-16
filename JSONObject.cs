@@ -24,6 +24,10 @@ THE SOFTWARE.
 //#define JSONOBJECT_USE_FLOAT //Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
 //#define JSONOBJECT_POOLING //Create JSONObjects from a pool and prevent finalization by returning objects to the pool
 
+// ReSharper disable ArrangeAccessorOwnerBody
+// ReSharper disable MergeConditionalExpression
+// ReSharper disable UseStringInterpolation
+
 #if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
 #define USING_UNITY
 #endif
@@ -476,6 +480,7 @@ namespace Defective.JSON {
 			Parse(jsonString, ref offset, endOffset, this, maxDepth, storeExcessLevels);
 		}
 
+		// ReSharper disable UseNameofExpression
 		static bool BeginParse(string inputString, int offset, ref int endOffset, JSONObject container, int maxDepth, bool storeExcessLevels) {
 			if (container == null)
 				throw new ArgumentNullException("container");
@@ -507,6 +512,7 @@ namespace Defective.JSON {
 
 			return true;
 		}
+		// ReSharper restore UseNameofExpression
 
 		static void Parse(string inputString, ref int offset, int endOffset, JSONObject container, int maxDepth,
 			bool storeExcessLevels, int depth = 0, bool isField = false, bool isRoot = true) {

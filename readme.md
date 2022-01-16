@@ -159,8 +159,14 @@ void Test() {
 
 ## Change Log
 
+### v2.1.1
+* Fix issue parsing nested arrays with multiple elements
+* Refactor MaxDepth tests
+* Fix issues with MaxDepth
+
 ### v2.1
 * Add async parsing method
+* Rewrite and optimize parser
 * Fix parsing errors
 * Refactor VectorTemplates to use extension methods
 * Add more tests

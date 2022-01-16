@@ -21,6 +21,7 @@ THE SOFTWARE.
 */
 
 //#define JSONOBJECT_PERFORMANCE_TEST //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
+// ReSharper disable UseStringInterpolation
 
 using Defective.JSON.Tests;
 using UnityEngine;

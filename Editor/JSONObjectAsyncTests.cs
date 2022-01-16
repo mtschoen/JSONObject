@@ -22,6 +22,8 @@ THE SOFTWARE.
 
 //#define JSONOBJECT_USE_FLOAT	//Use floats for numbers instead of doubles (enable if you don't need support for doubles and want to cut down on significant digits in output)
 
+// ReSharper disable UseStringInterpolation
+
 #if UNITY_5_6_OR_NEWER && JSONOBJECT_TESTS
 using System.Text;
 using NUnit.Framework;
@@ -253,7 +255,7 @@ namespace Defective.JSON.Tests {
 			var jsonText = string.Format(TestStrings.JsonFormatFloat, value.ToString("R"));
 
 #if JSONOBJECT_USE_FLOAT
-			var expected = string.Format(TestStrings.JsonFormatFloat, (float) value);
+			var expected = string.Format(TestStrings.JsonFormatFloat, ((float) value).ToString("R"));
 #else
 			var expected = jsonText;
 #endif
