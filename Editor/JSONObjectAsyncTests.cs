@@ -81,6 +81,12 @@ namespace Defective.JSON.Tests {
 		}
 
 		[Test]
+		public void InputWithExtraWhitespace() {
+			var expected = TestStrings.JsonExtraWhitespace.Replace(" ", string.Empty);
+			ValidateJsonString(TestStrings.JsonExtraWhitespace, expected);
+		}
+
+		[Test]
 		public void SubStringInputMatchesOutput() {
 			var start = 14;
 			var end = TestStrings.JsonString.Length - 1;

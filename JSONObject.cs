@@ -729,6 +729,14 @@ namespace Defective.JSON {
 
 		void ParseValue(string inputString, int startOffset, int lastValidOffset) {
 			var firstCharacter = inputString[startOffset];
+			do {
+				if (Array.IndexOf(Whitespace, firstCharacter) > -1) {
+					firstCharacter = inputString[++startOffset];
+					continue;
+				}
+
+				break;
+			} while (true);
 
 			// Use character comparison instead of string compare as performance optimization
 			switch (firstCharacter)

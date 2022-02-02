@@ -30,5 +30,6 @@ namespace Defective.JSON.Tests {
 		public const string JsonFormat = "{{\"" + FieldName + "\":{0}}}";
 		public const string JsonFormatString = "{{\"" + FieldName + "\":\"{0}\"}}";
 		public const string JsonFormatFloat = "{{\"" + FieldName + "\":{0}}}";
+		public const string JsonExtraWhitespace = "{\"key1\":\"value\", \"key2\" : \"value\" }";
 	}
 }
