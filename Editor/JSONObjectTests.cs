@@ -1156,6 +1156,18 @@ namespace Defective.JSON.Tests {
 			Assert.That(jsonObject.isNull, Is.True);
 		}
 
+		[Test]
+		public void EmptyObject() {
+			var emptyJsonObject = new JSONObject("{}");
+			Assert.That(emptyJsonObject.ToString(), Is.EqualTo("{}"));
+		}
+
+		[Test]
+		public void EmptyArray() {
+			var emptyJsonObject = new JSONObject("[]");
+			Assert.That(emptyJsonObject.ToString(), Is.EqualTo("[]"));
+		}
+
 #if JSONOBJECT_POOLING
 		[OneTimeTearDown]
 		public void OneTimeTearDown() {

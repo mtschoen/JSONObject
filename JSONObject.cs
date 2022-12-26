@@ -507,8 +507,8 @@ namespace Defective.JSON {
 			if (endOffset >= stringLength)
 				throw new ArgumentException("Cannot parse if end offset is greater than or equal to string length", "endOffset");
 
-			if (offset >= endOffset)
-				throw new ArgumentException("Cannot parse if offset is greater than or equal to end offset", "offset");
+			if (offset > endOffset)
+				throw new ArgumentException("Cannot parse if offset is greater than end offset", "offset");
 
 			return true;
 		}

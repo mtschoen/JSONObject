@@ -159,6 +159,12 @@ void Test() {
 
 ## Change Log
 
+### v2.1.3
+* Fix exception where input is just an empty array or object
+
+### v2.1.2
+* Fix issue parsing json strings with whitespace after colon characters
+
 ### v2.1.1
 * Fix issue parsing nested arrays with multiple elements
 * Refactor MaxDepth tests
