@@ -48,10 +48,10 @@ namespace Defective.JSON {
 	public class JSONObject : IEnumerable {
 #if JSONOBJECT_POOLING
 		const int MaxPoolSize = 100000;
-		static readonly Queue<JSONObject> Pool = new Queue<JSONObject>();
+		static readonly Queue<JSONObject> JSONObjectPool = new Queue<JSONObject>();
+		static readonly Queue<List<JSONObject>> JSONObjectListPool = new Queue<List<JSONObject>>();
+		static readonly Queue<List<string>> StringListPool = new Queue<List<string>>();
 		static bool poolingEnabled = true;
-
-		bool isPooled;
 #endif
 
 #if !JSONOBJECT_DISABLE_PRETTY_PRINT
@@ -95,17 +95,7 @@ namespace Defective.JSON {
 		public delegate void FieldNotFound(string name);
 		public delegate void GetFieldResponse(JSONObject jsonObject);
 
-		public bool isContainer {
-			get { return type == Type.Array || type == Type.Object; }
-		}
-
 		public Type type = Type.Null;
-
-		public int count {
-			get {
-				return list == null ? 0 : list.Count;
-			}
-		}
 
 		public List<JSONObject> list;
 		public List<string> keys;
@@ -115,25 +105,21 @@ namespace Defective.JSON {
 		public bool boolValue;
 #if JSONOBJECT_USE_FLOAT
 		public float floatValue;
-		public double doubleValue {
-			get {
-				return floatValue;
-			}
-			set {
-				floatValue = (float) value;
-			}
-		}
 #else
 		public double doubleValue;
-		public float floatValue {
+#endif
+
+		bool isPooled;
+
+		public int count {
 			get {
-				return (float) doubleValue;
-			}
-			set {
-				doubleValue = value;
+				return list == null ? 0 : list.Count;
 			}
 		}
-#endif
+
+		public bool isContainer {
+			get { return type == Type.Array || type == Type.Object; }
+		}
 
 		public int intValue {
 			get {
@@ -143,6 +129,26 @@ namespace Defective.JSON {
 				longValue = value;
 			}
 		}
+
+#if JSONOBJECT_USE_FLOAT
+		public double doubleValue {
+			get {
+				return floatValue;
+			}
+			set {
+				floatValue = (float) value;
+			}
+		}
+#else
+		public float floatValue {
+			get {
+				return (float) doubleValue;
+			}
+			set {
+				doubleValue = value;
+			}
+		}
+#endif
 
 		public delegate void AddJSONContents(JSONObject self);
 
@@ -207,8 +213,8 @@ namespace Defective.JSON {
 
 		public JSONObject(Dictionary<string, string> dictionary) {
 			type = Type.Object;
-			keys = new List<string>();
-			list = new List<JSONObject>();
+			keys = CreateStringList();
+			list = CreateJSONObjectList();
 			foreach (KeyValuePair<string, string> kvp in dictionary) {
 				keys.Add(kvp.Key);
 				list.Add(CreateStringObject(kvp.Value));
@@ -217,8 +223,8 @@ namespace Defective.JSON {
 
 		public JSONObject(Dictionary<string, JSONObject> dictionary) {
 			type = Type.Object;
-			keys = new List<string>();
-			list = new List<JSONObject>();
+			keys = CreateStringList();
+			list = CreateJSONObjectList();
 			foreach (KeyValuePair<string, JSONObject> kvp in dictionary) {
 				keys.Add(kvp.Key);
 				list.Add(kvp.Value);
@@ -231,7 +237,8 @@ namespace Defective.JSON {
 
 		public JSONObject(JSONObject[] objects) {
 			type = Type.Array;
-			list = new List<JSONObject>(objects);
+			list = CreateJSONObjectList();
+			list.AddRange(objects);
 		}
 
 		public JSONObject(List<JSONObject> objects) {
@@ -253,7 +260,7 @@ namespace Defective.JSON {
 			var otherList = other.list;
 			if (otherList != null) {
 				if (list == null)
-					list = new List<JSONObject>();
+					list = CreateJSONObjectList();
 
 				list.AddRange(otherList);
 			}
@@ -261,7 +268,7 @@ namespace Defective.JSON {
 			var otherKeys = other.keys;
 			if (otherKeys != null) {
 				if (keys == null)
-					keys = new List<string>();
+					keys = CreateStringList();
 
 				keys.AddRange(otherKeys);
 			}
@@ -281,9 +288,9 @@ namespace Defective.JSON {
 
 		public static JSONObject Create() {
 #if JSONOBJECT_POOLING
-			lock (Pool) {
-				if (Pool.Count > 0) {
-					var result = Pool.Dequeue();
+			lock (JSONObjectPool) {
+				if (JSONObjectPool.Count > 0) {
+					var result = JSONObjectPool.Dequeue();
 
 					result.isPooled = false;
 					return result;
@@ -398,7 +405,9 @@ namespace Defective.JSON {
 		public static JSONObject Create(JSONObject[] objects) {
 			var jsonObject = Create();
 			jsonObject.type = Type.Array;
-			jsonObject.list = new List<JSONObject>(objects);
+			var list = CreateJSONObjectList();
+			list.AddRange(objects);
+			jsonObject.list = list;
 
 			return jsonObject;
 		}
@@ -414,9 +423,9 @@ namespace Defective.JSON {
 		public static JSONObject Create(Dictionary<string, string> dictionary) {
 			var jsonObject = Create();
 			jsonObject.type = Type.Object;
-			var keys = new List<string>();
+			var keys = CreateStringList();
 			jsonObject.keys = keys;
-			var list = new List<JSONObject>();
+			var list = CreateJSONObjectList();
 			jsonObject.list = list;
 			foreach (var kvp in dictionary) {
 				keys.Add(kvp.Key);
@@ -429,9 +438,9 @@ namespace Defective.JSON {
 		public static JSONObject Create(Dictionary<string, JSONObject> dictionary) {
 			var jsonObject = Create();
 			jsonObject.type = Type.Object;
-			var keys = new List<string>();
+			var keys = CreateStringList();
 			jsonObject.keys = keys;
-			var list = new List<JSONObject>();
+			var list = CreateJSONObjectList();
 			jsonObject.list = list;
 			foreach (var kvp in dictionary) {
 				keys.Add(kvp.Key);
@@ -720,7 +729,7 @@ namespace Defective.JSON {
 		static void SafeAddChild(JSONObject container, JSONObject child) {
 			var list = container.list;
 			if (list == null) {
-				list = new List<JSONObject>();
+				list = CreateJSONObjectList();
 				container.list = list;
 			}
 
@@ -904,7 +913,7 @@ namespace Defective.JSON {
 
 			var keys = container.keys;
 			if (keys == null) {
-				keys = new List<string>();
+				keys = CreateStringList();
 				container.keys = keys;
 			}
 
@@ -1012,7 +1021,7 @@ namespace Defective.JSON {
 			// Convert to array to support list
 			type = Type.Array;
 			if (list == null)
-				list = new List<JSONObject>();
+				list = CreateJSONObjectList();
 
 			list.Add(jsonObject);
 		}
@@ -1052,10 +1061,10 @@ namespace Defective.JSON {
 			// Convert to object if needed to support fields
 			type = Type.Object;
 			if (list == null)
-				list = new List<JSONObject>();
+				list = CreateJSONObjectList();
 
 			if (keys == null)
-				keys = new List<string>();
+				keys = CreateStringList();
 
 			while (keys.Count < list.Count) {
 				keys.Add(keys.Count.ToString(CultureInfo.InvariantCulture));
@@ -1291,13 +1300,29 @@ namespace Defective.JSON {
 		}
 
 		public void Clear() {
+#if JSONOBJECT_POOLING
+			if (list != null) {
+				lock (JSONObjectListPool) {
+					if (poolingEnabled && JSONObjectListPool.Count < MaxPoolSize) {
+						list.Clear();
+						JSONObjectListPool.Enqueue(list);
+					}
+				}
+			}
+
+			if (keys != null) {
+				lock (StringListPool) {
+					if (poolingEnabled && StringListPool.Count < MaxPoolSize) {
+						keys.Clear();
+						StringListPool.Enqueue(keys);
+					}
+				}
+			}
+#endif
+
 			type = Type.Null;
-			if (list != null)
-				list.Clear();
-
-			if (keys != null)
-				keys.Clear();
-
+			list = null;
+			keys = null;
 			stringValue = null;
 			longValue = 0;
 			boolValue = false;
@@ -1837,23 +1862,57 @@ namespace Defective.JSON {
 		public static void ClearPool() {
 			poolingEnabled = false;
 			poolingEnabled = true;
-			lock (Pool) {
-				Pool.Clear();
+			lock (JSONObjectPool) {
+				JSONObjectPool.Clear();
 			}
 		}
 
 		~JSONObject() {
-			lock (Pool) {
-				if (!poolingEnabled || isPooled || Pool.Count >= MaxPoolSize)
+			lock (JSONObjectPool) {
+				if (!poolingEnabled || isPooled || JSONObjectPool.Count >= MaxPoolSize)
 					return;
 
 				Clear();
 				isPooled = true;
-				Pool.Enqueue(this);
+				JSONObjectPool.Enqueue(this);
 				GC.ReRegisterForFinalize(this);
 			}
 		}
+
+		public static int GetJSONObjectPoolSize() {
+			return JSONObjectPool.Count;
+		}
+
+		public static int GetJSONObjectListPoolSize() {
+			return JSONObjectListPool.Count;
+		}
+
+		public static int GetStringListPoolSize() {
+			return StringListPool.Count;
+		}
 #endif
+
+		public static List<JSONObject> CreateJSONObjectList() {
+#if JSONOBJECT_POOLING
+			lock (JSONObjectListPool) {
+				if (JSONObjectListPool.Count > 0)
+					return JSONObjectListPool.Dequeue();
+			}
+#endif
+
+			return new List<JSONObject>();
+		}
+
+		public static List<string> CreateStringList() {
+#if JSONOBJECT_POOLING
+			lock (StringListPool) {
+				if (StringListPool.Count > 0)
+					return StringListPool.Dequeue();
+			}
+#endif
+
+			return new List<string>();
+		}
 
 		IEnumerator IEnumerable.GetEnumerator() {
 			return GetEnumerator();

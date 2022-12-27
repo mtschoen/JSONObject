@@ -161,6 +161,9 @@ void Test() {
 
 ### v2.1.3
 * Fix exception where input is just an empty array or object
+* Pool and null out list and keys field when clearing JSONObject for consistency with a fresh object;
+This was causing the MaxDepthWithExcessLevels test to fail randomly when checking results because some pooled objects had list but not keys
+* Update JSONChecker with information about pools and a note about not validating standard JSON
 
 ### v2.1.2
 * Fix issue parsing json strings with whitespace after colon characters

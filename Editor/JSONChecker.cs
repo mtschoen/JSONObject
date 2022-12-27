@@ -46,6 +46,14 @@ namespace Defective.JSON {
 		}
 
 		void OnGUI() {
+#if JSONOBJECT_POOLING
+			GUILayout.Label("Note: The purpose of this window is to check what happens specifically when JSONObject parses a given input, not to validate the input against the JSON standard. JSONObject will successfully parse some invalid JSON strings for maximum compatibility.", EditorStyles.wordWrappedMiniLabel);
+			GUILayout.Label("Pool sizes:");
+			EditorGUILayout.LabelField("JSONObjects", JSONObject.GetJSONObjectPoolSize().ToString());
+			EditorGUILayout.LabelField("JSONObject Lists", JSONObject.GetJSONObjectListPoolSize().ToString());
+			EditorGUILayout.LabelField("String (key) lists", JSONObject.GetStringListPoolSize().ToString());
+#endif
+
 			testJsonString = EditorGUILayout.TextArea(testJsonString);
 			GUI.enabled = !string.IsNullOrEmpty(testJsonString);
 			if (GUILayout.Button("Check JSON")) {
