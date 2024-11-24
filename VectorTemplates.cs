@@ -20,6 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#define USING_UNITY
+#endif
+
+#if USING_UNITY
+
 using UnityEngine;
 
 namespace Defective.JSON {
@@ -299,3 +305,5 @@ namespace Defective.JSON {
 		}
 	}
 }
+
+#endif

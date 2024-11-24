@@ -23,6 +23,12 @@ THE SOFTWARE.
 //#define JSONOBJECT_PERFORMANCE_TEST //For testing performance of parse/stringify.  Turn on editor profiling to see how we're doing
 // ReSharper disable UseStringInterpolation
 
+#if UNITY_2 || UNITY_3 || UNITY_4 || UNITY_5 || UNITY_5_3_OR_NEWER
+#define USING_UNITY
+#endif
+
+#if USING_UNITY
+
 using Defective.JSON.Tests;
 using UnityEngine;
 using UnityEditor;
@@ -118,3 +124,5 @@ namespace Defective.JSON {
 		}
 	}
 }
+
+#endif

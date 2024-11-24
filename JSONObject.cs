@@ -843,7 +843,12 @@ namespace Defective.JSON {
 				return true;
 
 			if (container == null) {
-				Debug.LogError("Parsing error: encountered `}` with no container object");
+#if USING_UNITY
+				Debug.LogError
+#else
+				Debug.WriteLine
+#endif
+				("Parsing error: encountered `}` with no container object");
 				return false;
 			}
 
@@ -870,7 +875,12 @@ namespace Defective.JSON {
 				return true;
 
 			if (container == null) {
-				Debug.LogError("Parsing error: encountered `]` with no container object");
+#if USING_UNITY
+				Debug.LogError
+#else
+				Debug.WriteLine
+#endif
+				("Parsing error: encountered `]` with no container object");
 				return false;
 			}
 
@@ -907,7 +917,12 @@ namespace Defective.JSON {
 				return true;
 
 			if (container == null) {
-				Debug.LogError("Parsing error: encountered `:` with no container object");
+#if USING_UNITY
+				Debug.LogError
+#else
+				Debug.WriteLine
+#endif
+				("Parsing error: encountered `:` with no container object");
 				return false;
 			}
 
@@ -929,7 +944,12 @@ namespace Defective.JSON {
 				return true;
 
 			if (container == null) {
-				Debug.LogError("Parsing error: encountered `,` with no container object");
+#if USING_UNITY
+				Debug.LogError
+#else
+				Debug.WriteLine
+#endif
+				("Parsing error: encountered `,` with no container object");
 				return false;
 			}
 
